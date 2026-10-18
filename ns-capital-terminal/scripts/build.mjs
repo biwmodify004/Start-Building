@@ -1,0 +1,16 @@
+import {mkdir,cp,copyFile,rm,readFile,readdir,writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {build} from 'esbuild';
+const root=process.cwd();
+const pkg=JSON.parse(await readFile(resolve(root,'node_modules/@luxalgo/vela/package.json'),'utf8'));
+if(pkg.version!=='0.8.4')throw new Error('Unexpected Vela version');
+await rm(resolve(root,'dist'),{recursive:true,force:true});
+await mkdir(resolve(root,'dist/vendor'),{recursive:true});
+await cp(resolve(root,'src'),resolve(root,'dist'),{recursive:true});
+await build({entryPoints:[resolve(root,'src/app.mjs')],outfile:resolve(root,'dist/app.mjs'),bundle:true,format:'esm',platform:'browser',target:'es2022',minify:true,legalComments:'linked'});
+await copyFile(resolve(root,'node_modules/@luxalgo/vela/LICENSE'),resolve(root,'dist/vendor/VELA-LICENSE.txt'));
+await copyFile(resolve(root,'node_modules/@luxalgo/vela/NOTICE'),resolve(root,'dist/vendor/VELA-NOTICE.txt'));
+let notices='NS Capital Terminal — bundled third-party dependency licenses\n\n';
+for(const entry of await readdir(resolve(root,'node_modules/@zag-js'))){const dir=resolve(root,'node_modules/@zag-js',entry);try{const license=await readFile(resolve(dir,'LICENSE'),'utf8');notices+='\n@zag-js/'+entry+'\n'+license+'\n';}catch{}}
+await writeFile(resolve(root,'dist/vendor/DEPENDENCY-LICENSES.txt'),notices);
+console.log('Built NS Capital Terminal with Vela '+pkg.version+' and bundled attribution notices.');

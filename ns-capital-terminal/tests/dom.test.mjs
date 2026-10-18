@@ -1,0 +1,59 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {JSDOM,VirtualConsole} from 'jsdom';
+
+// This is a DOM/API integration check. Canvas drawing is stubbed: it is not a visual/browser test.
+test('real Vela workspace boots and host research, backtest, journal and paper controls work',async()=>{
+ const virtualConsole=new VirtualConsole(),dom=new JSDOM(await readFile(new URL('../src/index.html',import.meta.url),'utf8'),{url:'https://terminal.test/',pretendToBeVisual:true,virtualConsole});
+ const w=dom.window;
+ for(const key of ['window','document','HTMLElement','HTMLInputElement','HTMLTextAreaElement','HTMLSelectElement','HTMLButtonElement','HTMLCanvasElement','HTMLDialogElement','Element','Document','Node','MutationObserver','CustomEvent','Event','MouseEvent','KeyboardEvent','localStorage','location'])Object.defineProperty(globalThis,key,{value:key==='window'?w:w[key],writable:true,configurable:true});
+ Object.defineProperty(globalThis,'navigator',{value:w.navigator,writable:true,configurable:true});
+ globalThis.innerWidth=1365;globalThis.innerHeight=940;globalThis.devicePixelRatio=1;globalThis.getComputedStyle=w.getComputedStyle.bind(w);globalThis.requestAnimationFrame=w.requestAnimationFrame.bind(w);globalThis.cancelAnimationFrame=w.cancelAnimationFrame.bind(w);
+ const observer=class{constructor(cb){this.cb=cb;}observe(){}unobserve(){}disconnect(){}};
+ globalThis.ResizeObserver=w.ResizeObserver=observer;globalThis.IntersectionObserver=w.IntersectionObserver=observer;
+ w.matchMedia=()=>({matches:false,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}});globalThis.matchMedia=w.matchMedia;
+ globalThis.CSS=w.CSS={supports:()=>false,escape:s=>String(s).replace(/[^a-zA-Z0-9_-]/g,'_')};
+ w.Element.prototype.scrollIntoView=function(){};
+ w.Element.prototype.animate=function(){return {finished:Promise.resolve(),cancel(){},play(){},pause(){},finish(){},addEventListener(){}};};
+ w.Element.prototype.getBoundingClientRect=function(){const chart=this.id==='chart-container'||this.className?.toString().includes('vela');return {x:0,y:0,left:0,top:0,width:chart?850:1000,height:chart?550:800,right:850,bottom:550,toJSON(){return this;}};};
+ Object.defineProperty(w.HTMLElement.prototype,'clientWidth',{get(){return this.id==='chart-container'?850:1000;}});Object.defineProperty(w.HTMLElement.prototype,'clientHeight',{get(){return this.id==='chart-container'?550:800;}});
+ globalThis.Path2D=w.Path2D=class{constructor(){return new Proxy(this,{get:(t,k)=>k in t?t[k]:()=>{}});}};
+ const context=canvas=>new Proxy({canvas,measureText:text=>({width:String(text).length*6,actualBoundingBoxAscent:10,actualBoundingBoxDescent:3}),createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}}),getLineDash:()=>[],getTransform:()=>({a:1,b:0,c:0,d:1,e:0,f:0}),isPointInPath:()=>false,isPointInStroke:()=>false},{get:(t,k)=>k in t?t[k]:()=>{},set:(t,k,v)=>(t[k]=v,true)});
+ w.HTMLCanvasElement.prototype.getContext=function(type){return type==='2d'?(this._context??=context(this)):null;};
+ w.HTMLCanvasElement.prototype.toDataURL=()=> 'data:image/png;base64,';
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
+ const timers=[],originalInterval=globalThis.setInterval;globalThis.setInterval=(...args)=>{const id=originalInterval(...args);id.unref?.();timers.push(id);return id;};
+ const errors=[],originalError=console.error;console.error=(...args)=>errors.push(args.map(String).join(' '));
+ const waitFor=async(predicate)=>{const end=Date.now()+7000;while(!predicate()){if(Date.now()>end)throw new Error('Integration timed out. '+errors.join('\n')+' '+w.document.getElementById('market-notice').textContent);await new Promise(r=>setTimeout(r,15));}};
+ const $=id=>w.document.getElementById(id);
+ let workspace;
+ try{
+  await import('../src/app.mjs');
+  await waitFor(()=>globalThis.NSCapital);
+  workspace=globalThis.NSCapital.getWorkspace();
+  assert.ok(workspace.chart.market.symbol.endsWith('XAUUSD'));
+  assert.equal(workspace.chart.indicators().filter(h=>h.nativeType==='ema').length,3);
+  await waitFor(()=>Number($('trade-count').textContent)>0);
+  assert.notEqual($('instrument-price').textContent,'—');
+  assert.match($('source-label').textContent,/SAMPLE/);
+  $('prompt').value='Mean Reversion BB risk 0.3% RR 1:2';$('prompt-form').dispatchEvent(new w.Event('submit',{cancelable:true}));
+  assert.equal(globalThis.NSCapital.getConfig().kind,'mean');
+  assert.equal(globalThis.NSCapital.getConfig().risk,.3);
+  assert.ok(workspace.chart.indicators().some(h=>h.nativeType==='bollinger-bands'));
+  await globalThis.NSCapital.runBacktest();assert.match($('results-title').textContent,/Bollinger/);
+  $('theme-btn').click();assert.ok(w.document.body.classList.contains('light'));
+  $('journal-input').value='<script>unsafe()</script> research note';$('journal-form').dispatchEvent(new w.Event('submit',{cancelable:true}));assert.equal($('journal-entries').querySelectorAll('script').length,0);assert.match($('journal-entries').textContent,/research note/);
+  $('paper-buy').click();assert.match($('position-rows').textContent,/BUY/);$('position-rows').querySelector('[data-close-position]').click();assert.match($('position-rows').textContent,/No open positions/);
+  const eur=w.document.querySelector('[data-symbol="sample:EURUSD"]');eur.click();await waitFor(()=>workspace.chart.market.symbol.endsWith('EURUSD')&&$('instrument-symbol').textContent==='EURUSD');assert.notEqual($('instrument-price').textContent,'—');
+  const scene=workspace.chart.inspect();assert.ok(scene.indicators.length>=3);
+  const bounds=workspace.chart.replay.bounds;
+  await workspace.chart.replay.start({from:bounds.first+(bounds.last-bounds.first)*.7});
+  assert.equal(workspace.chart.replay.state.active,true);assert.match($('source-label').textContent,/REPLAY/);
+  await globalThis.NSCapital.runBacktest();assert.ok(Number($('result-footnote').textContent.split(' ')[0])<720);
+  workspace.chart.replay.stop();
+  workspace.setLayout('2h');assert.equal(workspace.cells().length,2);
+  workspace.setLayout('1');assert.equal(workspace.cells().length,1);
+  assert.equal(errors.length,0,errors.join('\n'));
+ }finally{workspace?.destroy();for(const id of timers)clearInterval(id);globalThis.setInterval=originalInterval;console.error=originalError;if(errors.length)originalError(errors);w.close();}
+});
