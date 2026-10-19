@@ -28,6 +28,10 @@ test('real Vela workspace boots and host research, backtest, journal and paper c
  const waitFor=async(predicate)=>{const end=Date.now()+7000;while(!predicate()){if(Date.now()>end)throw new Error('Integration timed out. '+errors.join('\n')+' '+w.document.getElementById('market-notice').textContent);await new Promise(r=>setTimeout(r,15));}};
  const $=id=>w.document.getElementById(id);
  let workspace;
+ const originalFetch=globalThis.fetch,originalWebSocket=globalThis.WebSocket,sockets=[];
+ class FeedSocket{constructor(url){this.url=url;this.closed=false;sockets.push(this);}close(){this.closed=true;}message(symbol,close){this.onmessage?.({data:JSON.stringify({e:'kline',E:Date.now(),s:symbol,k:{t:Math.floor(Date.now()/900000)*900000,o:String(close-10),h:String(close+20),l:String(close-20),c:String(close),v:'12',i:'15m'}})});}}
+ globalThis.WebSocket=FeedSocket;
+ globalThis.fetch=async raw=>{const url=new URL(raw);assert.equal(url.origin,'https://data-api.binance.vision');if(url.pathname.endsWith('/exchangeInfo'))return {ok:true,status:200,json:async()=>({symbols:[{baseAsset:'BTC',quoteAsset:'USDT',filters:[{filterType:'PRICE_FILTER',tickSize:'0.01'}]}]})};assert.ok(url.pathname.endsWith('/klines'));const n=Number(url.searchParams.get('limit')||720),step=url.searchParams.get('interval')==='1m'?60000:900000,end=Number(url.searchParams.get('endTime')||Date.now()),start=Number(url.searchParams.get('startTime')||Math.floor(end/step)*step-(n-1)*step),rows=Array.from({length:Math.min(n,Math.floor((end-start)/step)+1)},(_,i)=>{const time=start+i*step,open=80000+Math.sin(time/1e7)*100;return [time,open,open+20,open-20,open+5,100];});return {ok:true,status:200,json:async()=>rows};};
  try{
   await import('../src/app.mjs');
   await waitFor(()=>globalThis.NSCapital);
@@ -54,6 +58,15 @@ test('real Vela workspace boots and host research, backtest, journal and paper c
   workspace.chart.replay.stop();
   workspace.setLayout('2h');assert.equal(workspace.cells().length,2);
   workspace.setLayout('1');assert.equal(workspace.cells().length,1);
+  $('source-select').value='binance';$('source-select').dispatchEvent(new w.Event('change'));
+  await waitFor(()=>workspace.chart.market.symbol.endsWith('BTCUSDT')&&sockets.length>0);
+  assert.equal($('crypto-controls').hidden,false);assert.equal($('paper-buy').disabled,true);
+  sockets.at(-1).message('BTCUSDT',83000);await waitFor(()=>$('source-label').textContent.includes('LIVE'));assert.match($('instrument-price').textContent,/83,000/);assert.equal($('paper-buy').disabled,false);
+  const count=sockets.length;$('crypto-reconnect').click();await waitFor(()=>sockets.length>count);assert.equal(sockets[0].closed,true);
+  sockets.at(-1).message('BTCUSDT',83001);await waitFor(()=>$('source-label').textContent.includes('LIVE'));
+  $('crypto-pair').value='ETHUSDT';$('crypto-pair').dispatchEvent(new w.Event('change'));await waitFor(()=>workspace.chart.market.symbol.endsWith('ETHUSDT')&&sockets.at(-1).url.includes('ethusdt'));
+  sockets.at(-1).message('BTCUSDT',84000);assert.ok(!$('source-label').textContent.includes('LIVE'));
+  sockets.at(-1).message('ETHUSDT',3000);await waitFor(()=>$('source-label').textContent.includes('LIVE'));assert.match($('instrument-price').textContent,/3,000/);
   assert.equal(errors.length,0,errors.join('\n'));
- }finally{workspace?.destroy();for(const id of timers)clearInterval(id);globalThis.setInterval=originalInterval;console.error=originalError;if(errors.length)originalError(errors);w.close();}
+ }finally{workspace?.destroy();for(const id of timers)clearInterval(id);globalThis.setInterval=originalInterval;globalThis.fetch=originalFetch;globalThis.WebSocket=originalWebSocket;console.error=originalError;if(errors.length)originalError(errors);w.close();}
 });

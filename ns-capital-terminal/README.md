@@ -22,7 +22,7 @@ Open `http://127.0.0.1:8080`. Any static host can serve `dist/`. No API keys are
 - NS Research: honest local keyword parser for EMA crossover, Bollinger re-entry and prior-range breakout, with editable JSON rules.
 - Backtesting: next-open execution after a closed-bar signal, Wilder ATR stops, fixed reward multiple, equity-based risk sizing, per-side commission and adverse slippage, gap-aware stops and conservative stop-first ambiguous bars.
 - Real computed equity, net P&L, win rate, profit factor, bar-close maximum drawdown, trade table, chart marks and CSV trade export.
-- Clearly labeled deterministic synthetic samples, optional public Binance crypto feed, and CSV imports including MT5 tab-separated exports with explicit broker UTC offset.
+- Clearly labeled deterministic synthetic samples, public Binance Spot crypto feed with connection state and recovery, and CSV imports including MT5 tab-separated exports with explicit broker UTC offset.
 - Watchlist, browser-local price alerts, simulated market orders and exits, journal with BTR/DCE tags, JSON backup/restore, light/dark themes, Thai/English host UI and Thai/New York clocks with DST handled by IANA timezones.
 - Broker tick-based risk calculator; values are editable examples and must match the user's broker contract.
 
@@ -37,6 +37,24 @@ Backtests use loaded chart history, or the revealed prefix during Replay. Curren
 Paper orders use asset units, not CFD lots. Accounts are separate by quote currency: USD, USDT, JPY. Fills use visible chart prices with configurable commission but no paper slippage or margin modeling. Stop/target exits require this page to receive new bars on the same symbol/timeframe and Replay mode. Alerts run only while the page is open; no background service or broker orders are installed.
 
 User notes, positions, alerts, imported bars and chart layouts remain in this browser's localStorage. They do not sync between devices or users. Use Backup to export a JSON archive. Clearing browser storage removes local records. No user records or API credentials are committed to GitHub.
+
+## Binance Spot live prices
+
+Choose **Binance · Crypto** above the chart, then choose BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT, DOGEUSDT or ADAUSDT from the pair selector. The native symbol picker also lists these pairs. A direct link can select the source: `/?source=binance&symbol=BTCUSDT`.
+
+This adapter uses Binance's official, public market-data-only hosts:
+
+- Historical candles: `https://data-api.binance.vision/api/v3/klines`
+- Current candle updates: `wss://data-stream.binance.vision:443/ws/btcusdt@kline_15m`
+- Documentation: https://developers.binance.com/en/docs/products/spot/faqs/market_data_only
+
+No Binance account, API key, trading permission, backend or third-party proxy is required for this public feed. This is **Spot**, not futures, Forex or gold. External network and regional availability can still affect connectivity.
+
+`BINANCE · LIVE` appears only after a fresh valid WebSocket candle for the selected pair and interval. Socket opening alone is not counted as a live price. The status line shows the receive time in Thailand time. A silent socket is closed after 15 seconds; REST updates are requested every 5 seconds while reconnecting, with no overlapping polling requests. REST fallback is labeled `BINANCE · REST`. Invalid, stale, wrong-symbol and out-of-order stream messages are ignored. When the selected live quote is unavailable or stale, paper Buy/Sell buttons are disabled. Existing data are not silently replaced with synthetic sample prices.
+
+Use **Reconnect** to refresh chart history and resubscribe while retaining workspace content. Non-native aggregated intervals use REST so they do not render an incomplete streamed aggregate. Monthly chart intervals are outside the supported live interval list.
+
+REST history and a real WebSocket candle were received successfully from this execution environment. Unit and simulated-DOM tests additionally cover reconnect, pair switching, stale stream detection, polling fallback and unsubscribe cleanup. This does not verify the user's browser/network or real browser rendering.
 
 ## Optional real AI through a local compatible server
 
@@ -54,7 +72,7 @@ This adapter requires an available model endpoint; it is not deployed by the sta
 
 ## Verification
 
-`npm test` checks indicator warmups, no-future-data signals, next-bar entries, P&L reconciliation, round-trip costs, ambiguous SL/TP and gap fills, CSV timezone conversion, data validation, risk rounding, deterministic samples and the real Vela integration in a simulated DOM. DOM integration tests do not verify actual browser rendering, touch gestures, WebGL, third-party feed connectivity or AI inference. The build bundles the real Vela workspace and all transitive browser dependencies with pinned versions.
+`npm test` checks indicator warmups, no-future-data signals, next-bar entries, P&L reconciliation, round-trip costs, ambiguous SL/TP and gap fills, CSV timezone conversion, data validation, risk rounding, deterministic samples and the real Vela integration in a simulated DOM. DOM integration tests do not verify actual browser rendering, touch gestures, WebGL, a real browser network path or AI inference. The build bundles the real Vela workspace and all transitive browser dependencies with pinned versions.
 
 ## License and attribution
 
