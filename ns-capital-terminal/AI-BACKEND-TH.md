@@ -1,8 +1,8 @@
 # NS Capital — Backend AI และแอปติดตั้งได้
 
-## สถานะปัจจุบัน (1.8)
+## สถานะปัจจุบัน (1.9)
 
-- หน้าเว็บเป็นแอป JavaScript ที่โฮสต์กับ Sites และเพิ่ม PWA manifest, launcher icons, service worker และเมนูติดตั้งแล้ว
+- หน้าเว็บเป็นแอป JavaScript ที่โฮสต์บน GitHub Pages และเพิ่ม PWA manifest, launcher icons, service worker และเมนูติดตั้งแล้ว
 - Broker Backend ปัจจุบันคือ Python HTTP gateway (`broker-bridge/bridge.py`) บน Windows / Windows VPS เชื่อมบัญชี MT4/MT5 จริง ไม่ใช่ FastAPI
 - AI adapter ปัจจุบันเรียก Ollama, LM Studio หรือ OpenAI-compatible API ผ่าน `ai_advisor.py` เพื่อวิเคราะห์บริบท เสนอร่างคำสั่ง และ Journal Coaching จากสถิติจริง มี MCP สำหรับอ่านข้อมูล/ขอข้อเสนอ
 - ยังไม่มี Training pipeline, โมเดลซื้อขายที่ฝึกจากข้อมูลของคุณ, ระบบเรียนรู้อัตโนมัติจากผลเทรด, FastAPI server หรือระบบ Auto-trading ที่เปิดเองต่อเนื่อง
@@ -10,7 +10,7 @@
 
 ## ฐานข้อมูลกลางและ Backend Risk ที่เพิ่มใน 1.8
 
-มี SQLite จริงบนเครื่อง Broker Bridge/Windows VPS พร้อม Auto Journal ของ MT5/MT4, ต้นทุนจริง, server notes แยกบัญชี, การสำรอง และกฎ Risk ต่อไม้/Daily Loss/Drawdown ที่ตรวจตอน Preview/Execute แล้ว เว็บ/PWA อ่านผ่าน API ไม่รัน Python/SQLite ภายใน static Sites
+มี SQLite จริงบนเครื่อง Broker Bridge/Windows VPS พร้อม Auto Journal ของ MT5/MT4, ต้นทุนจริง, server notes แยกบัญชี, การสำรอง และกฎ Risk ต่อไม้/Daily Loss/Drawdown ที่ตรวจตอน Preview/Execute แล้ว เว็บ/PWA อ่านผ่าน API ไม่รัน Python/SQLite ภายใน GitHub Pages
 
 ต้องอัปเดต Bridge/EA และตั้ง NS_DB_PATH/สิทธิ์ตามคู่มือ ฐานข้อมูลเริ่มรับประวัติเมื่อเชื่อม Terminal จริง ไม่ใช่ข้อมูลตัวอย่างในเว็บ กฎความเสี่ยงยังต้องตั้งแยกบัญชี ถ้าไม่ตั้งหรือประวัติไม่พร้อมจะไม่เปิดใหม่ ขณะ Close/ลดความเสี่ยงยังใช้ได้ตามสิทธิ์
 
@@ -72,7 +72,7 @@ FastAPI เป็นตัวประสาน API ไม่ใช่ตัว�
 - **เครื่องส่วนตัว:** ใช้สำหรับพัฒนา เทรนขนาดที่เครื่องรองรับ และรัน Ollama / LM Studio; ตัวเชื่อม MT5 ใช้ Windows
 - **Windows VPS:** รัน MT4/MT5 + Broker Bridge สำหรับการเชื่อมบัญชีที่ต้องเปิดต่อเนื่อง
 - **เครื่อง CPU/GPU แยก:** ใช้ worker สำหรับงานฝึกหนัก และ model-serving ตามทรัพยากรที่ต้องใช้
-- หน้า Sites/PWA แสดงผลและเรียก API ผ่าน HTTPS ไม่ใช่เครื่องฝึก GPU หรือ Python backend; ไม่เก็บ broker token/API key ลงโค้ดเว็บ
+- หน้า GitHub Pages/PWA แสดงผลและเรียก API ผ่าน HTTPS ไม่ใช่เครื่องฝึก GPU หรือ Python backend; ไม่เก็บ broker token/API key ลงโค้ดเว็บ
 - Backend ต้องเปิดและเข้าถึงได้จึงจะรับราคา/เรียก AI/ส่งคำสั่งได้ การปิด PWA ไม่ได้สั่งให้มีงานเทรนหรือเทรดเบื้องหลังโดยอัตโนมัติ
 
 ## ติดตั้งแอป

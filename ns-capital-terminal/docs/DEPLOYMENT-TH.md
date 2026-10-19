@@ -2,11 +2,15 @@
 
 คู่มือหลัก: [USER-MANUAL-TH.md](USER-MANUAL-TH.md) หัวข้อ Deployment, Login, HTTPS Gateway, Upgrade และ Backup
 
-Frontend ของเวอร์ชันนี้เป็น Static/PWA บน Sites โดย Authentication และ Audience อยู่ที่โฮสติ้ง ส่วน Python Bridge, SQLite และ MT4/MT5 ต้องรันบนเครื่อง/Windows VPS ของเจ้าของ บริการโมเดลแยกตาม Environment ของ Bridge
+Frontend เป็น Static/PWA บน **GitHub Pages** แสดงที่ `/Start-Building/` ผ่าน GitHub Actions ส่วน Python Bridge, SQLite และ MT4/MT5 ยังรันบน Windows/VPS ของเจ้าของ Google Login ตรวจที่ Bridge ไม่ใช่ระบบสมาชิกของ Pages
 
-ก่อนส่งมอบ production ต้องตรวจด้วยบัญชี Demo: Login/Audience, Symbol จริง, Quote freshness, History reconciliation, Risk halt ก่อน Execute, Receipt หลัง Timeout, การปิดและลด SL ขณะ Halt, Backup/Restore, Model inference และ Gateway จากอุปกรณ์เป้าหมาย การทดสอบ Fixture ไม่แทนการ Compile EA หรือทดสอบ Terminal จริง
+ตั้งค่าครั้งแรก: Repository → Settings → Pages → Source: GitHub Actions จากนั้น Merge/PUSH main ที่เปลี่ยนแอป หรือเลือก Actions → Deploy NS Capital to GitHub Pages → Run workflow ดูสถานะสำเร็จและ URL ใน Environment github-pages ก่อนใช้เว็บใหม่
 
-หากย้าย Frontend ออกจาก Sites ต้องจัด Authentication ฝั่งโฮสติ้งใหม่ ไม่ใช้ไฟล์หน้า Login เป็นการป้องกันข้อมูล และไม่ถือว่า CORS เป็นระบบสมาชิก เวอร์ชันนี้ยังไม่รวม SaaS tenant isolation/การเก็บ credential แยกสมาชิก/ฐาน Cloud ข้าม VPS
+Workflow ใช้ Node 22/Python 3.12 ทดสอบ JavaScript/Python แล้วรัน `npm run build:pages` อัปโหลดเฉพาะ dist ไม่อัปโหลดฐานจริง/Token/Python runtime มี OIDC/Pages write เฉพาะ deploy job โค้ดโครงการอยู่ใต้ ns-capital-terminal/ ส่วน Workflow ที่ทำงานจริงอยู่ root .github/workflows/
+
+Google Login ต้องมี Web OAuth Client ID ของเจ้าของ, JavaScript Origin ตรงเว็บ, Allowlist ที่ Bridge และติดตั้ง `py -m pip install -r requirements-google.txt` ดูขั้นตอนเต็มในคู่มือ Google Login ไม่มี Client Secret ในเว็บหรือ GitHub
+
+ก่อนใช้จริงตรวจบัญชี Demo, Quote freshness, History reconciliation, Risk ก่อน Execute, Receipt หลัง Timeout, Backup/Restore และการเชื่อมจากอุปกรณ์เป้าหมาย ยังไม่มี multi-tenant SaaS หรือ Cloud ledger ข้าม VPS
 
 ## Environment ฝั่ง Bridge
 
@@ -22,6 +26,9 @@ Frontend ของเวอร์ชันนี้เป็น Static/PWA บ�
 | NS_DB_PATH | ไฟล์ SQLite กลางบนดิสก์เครื่องเดียวกัน |
 | NS_HISTORY_DAYS | วันย้อนหลังเริ่มต้น 90 รับ 2–3650 |
 | NS_HISTORY_SYNC_SECONDS | รอบซิงก์เริ่มต้น 30 วินาที รับ 5–300; Risk ต้องการข้อมูลไม่เกิน 90 วินาที |
+| NS_GOOGLE_CLIENT_ID | Google Web OAuth Client ID ใช้ตรวจ audience |
+| NS_GOOGLE_ALLOWED_EMAILS | Gmail/Workspace owner allowlist คั่น comma |
+| NS_GOOGLE_ALLOWED_SUBS | Stable Google subject IDs ที่อนุญาต ใช้กับอีเมลภายนอก |
 | NS_AI_PROVIDER | ollama / lm-studio / openai-compatible |
 | NS_AI_BASE_URL | /v1 base ของโมเดล ต้อง HTTPS หรือ localhost HTTP |
 | NS_AI_MODEL | Exact model ID |

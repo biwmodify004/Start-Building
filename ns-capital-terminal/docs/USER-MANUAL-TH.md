@@ -1,14 +1,14 @@
 # คู่มือ NS Capital Terminal ภาษาไทย
 
-เวอร์ชัน 1.8.0 · ปรับปรุง 19 ตุลาคม 2569 (2026-10-19)
+เวอร์ชัน 1.9.0 · ปรับปรุง 19 ตุลาคม 2569 (2026-10-19)
 
-คู่มือนี้ตรงกับโค้ดเวอร์ชัน 1.8 ไม่ต้องมีบัญชีโบรกเกอร์เพื่อเปิดกราฟ Binance แต่ต้องติดตั้ง Broker Bridge และเชื่อม Terminal ของคุณก่อนใช้ราคาโบรกเกอร์ Auto Journal หรือส่งคำสั่งซื้อขาย
+คู่มือนี้ตรงกับโค้ดเวอร์ชัน 1.9 ไม่ต้องมีบัญชีโบรกเกอร์เพื่อเปิดกราฟ Binance แต่ต้องติดตั้ง Broker Bridge และเชื่อม Terminal ของคุณก่อนใช้ราคาโบรกเกอร์ Auto Journal หรือส่งคำสั่งซื้อขาย
 
-เว็บ: [เปิด NS Capital Terminal](https://ns-capital-terminal.biw-modify004.chatgpt.site) · [หน้าเข้าสู่ระบบ](../login.html) · [ดาวน์โหลด Broker Bridge](../downloads/NS-Capital-Broker-Bridge.zip)
+เว็บ: [เปิด NS Capital Terminal](https://biwmodify004.github.io/Start-Building) · [หน้าเข้าสู่ระบบ](https://biwmodify004.github.io/Start-Building/login.html) · [ดาวน์โหลด Broker Bridge](https://biwmodify004.github.io/Start-Building/downloads/NS-Capital-Broker-Bridge.zip)
 
 ## เริ่มใช้งานเร็ว
 
-1. เปิดเว็บใน Chrome, Edge หรือ Safari และเข้าสู่ระบบด้วย ChatGPT ที่มีสิทธิ์เข้าถึง Site
+1. เปิดเว็บ GitHub Pages ใน Chrome, Edge หรือ Safari ดูกราฟตลาดได้ทันที และใช้ Google Login เพื่อยืนยันตัวตนกับ Bridge ที่ตั้ง Client ID/Allowlist แล้ว
 2. เลือก **Binance · Crypto** เพื่อดูข้อมูลจริงได้ทันที ใช้ปุ่มค้นหาสินทรัพย์เพื่อเปิดรายการทั้งหมด
 3. ถ้าจะใช้ MT5 ให้ดาวน์โหลดและแตก Broker Bridge ไปที่ `C:\NS-Capital-Bridge` บน Windows เครื่องเดียวกับ Terminal
 4. เปิด MT5 และเข้าสู่บัญชี Demo ของคุณก่อน ติดตั้ง Python และแพ็กเกจ MetaTrader5 ตามหัวข้อ MT5
@@ -23,7 +23,7 @@
 
 | ความสามารถ | สถานะและขอบเขต |
 | --- | --- |
-| Login เว็บไซต์ | ใช้ ChatGPT sign-in และสิทธิ์เข้าถึงของ Sites เว็บปัจจุบันเป็นพื้นที่ส่วนตัวของเจ้าของ |
+| การเข้าถึง | GitHub Pages เป็นหน้าเว็บ Public; Google Login ตรวจ ID token/Allowlist ที่ Backend และออกเซสชันผูกบัญชี การเทรดยังต้องมี Trade token เพิ่ม |
 | Binance | รายการ Spot ที่ API รายงานว่าเปิดซื้อขายได้ ราคาและแท่งจริง ไม่ใช้ราคา Sample |
 | ทอง เงิน Forex และ Index | วิดเจ็ตอ้างอิง TradingView หรือข้อมูล Symbol จริงจาก MT4/MT5 ที่เชื่อมไว้ |
 | หลายบัญชี | เก็บหลายโปรไฟล์ สลับทำงานทีละบัญชี แต่ละบัญชีมี Bridge/Terminal และกฎแยกกัน |
@@ -38,21 +38,47 @@
 | Backtest/Paper | วิจัยในเบราว์เซอร์ แยกจากบัญชีจริง จำนวนเป็นหน่วยสินทรัพย์ ไม่ใช่ CFD Lot |
 | ติดตั้งเป็นแอป | PWA บนเบราว์เซอร์ที่รองรับ ใช้เปลือกแอปออฟไลน์ได้ ไม่ส่งคำสั่งออฟไลน์ |
 
-ไม่มีระบบเทรนโมเดลอัตโนมัติ ไม่มีการเปิดเทรดต่อเนื่องโดย AI ไม่มี Copy trade ทุกบัญชี ไม่มีการเชื่อมบัญชี Binance เพื่อส่ง Spot/Futures orders และยังไม่มีระบบสมาชิกแบบอีเมล/รหัสผ่านที่แยกจาก ChatGPT
+ไม่มีระบบเทรนโมเดลอัตโนมัติ ไม่มีการเปิดเทรดต่อเนื่องโดย AI ไม่มี Copy trade ทุกบัญชี ไม่มีการเชื่อมบัญชี Binance เพื่อส่ง Spot/Futures orders และยังไม่มีระบบสมัครสมาชิกแบบอีเมล/รหัสผ่านภายในแพลตฟอร์ม
 
-## Login และสิทธิ์เข้าถึง
+## Google Login
 
-เปิด `login.html` แล้วกด **เข้าสู่ระบบด้วย ChatGPT** ระบบจะนำทางระดับหน้าเว็บไปยังบริการยืนยันตัวตนของโฮสติ้ง หลังยืนยันแล้วกลับเข้า Terminal ได้ หากเข้าสู่ระบบอยู่แล้วใช้ **เปิด Terminal** ได้เลย
+เว็บหลักย้ายมา GitHub Pages หน้าเว็บและกราฟตลาดเปิดดูได้ทั่วไป ส่วนข้อมูลพอร์ตต้องยืนยันกับ Backend ของคุณ เมนู **N → เข้าสู่ระบบด้วย Google** เปิดหน้าต่างเลือก NS Broker Bridge URL แล้วกดตรวจ Backend เพื่อแสดงปุ่ม Sign in with Google จาก Google Identity Services
 
-เมนูวงกลม **N / บัญชีผู้ใช้** ที่ส่วนหัวมีปุ่มเข้าสู่ระบบ ออกจากระบบ และลิงก์คู่มือ บนมือถือเข้าผ่านเมนู **เพิ่มเติม → บัญชีผู้ใช้ / Login** ได้
+Backend ตรวจลายเซ็นของ ID token ด้วยไลบรารี Google, ผู้รับ (audience), ผู้ออก, วันหมดอายุ, email_verified และ nonce ที่ออกไว้แบบใช้ครั้งเดียว ตรวจ Allowlist แล้วจึงออกเซสชันอ่านข้อมูลที่ผูกกับ Platform/Server/Login ของ Terminal นี้ เซสชันมีอายุสูงสุด 30 นาทีและไม่เก็บใน localStorage/Backup
 
-บัญชีเว็บไซต์ใช้ยืนยันผู้เข้าเว็บ ส่วนบัญชีโบรกเกอร์ใช้ส่งคำสั่งและอ่านข้อมูลผ่าน Bridge คนละระบบกัน อย่าใส่รหัสผ่านโบรกเกอร์ในหน้า Login ของเว็บไซต์
+เซสชัน Google ไม่ให้สิทธิ์เปิดคำสั่งโดยตัวเอง การเทรดและการเปลี่ยนกฎ Risk ยังต้องมี Trade token แยก เปิดสิทธิ์ Terminal/Bridge และผ่าน Risk Engine เช่นเดิม Google Login ไม่ทำให้โมเดลมีสิทธิ์ Execute
 
-เวอร์ชันที่เผยแพร่นี้ยังเป็น Owner-private การเพิ่มผู้ใช้คนอื่นต้องกำหนดสิทธิ์ Site ก่อน ลิงก์ Track Record ไม่ข้ามสิทธิ์นี้ การเข้าสู่ระบบสำเร็จไม่ได้แปลว่าได้รับอนุญาตให้เปิดใช้ Terminal ของคนอื่น
+**ตั้งค่าครั้งแรกบน Google Cloud:**
 
-ระบบไม่ได้สร้างฐานรหัสผ่านหรือหน้าสมัครสมาชิกซ้ำกับโฮสติ้ง เมื่อนำไฟล์ `dist/` ไปโฮสต์เอง ต้องเพิ่มบริการ Authentication และการกำหนดสิทธิ์ฝั่งเซิร์ฟเวอร์ของผู้ให้บริการนั้นก่อนใช้เป็นเว็บไซต์สมาชิก เส้นทาง Login ของ ChatGPT ในแพ็กเกจนี้ทำงานกับ Sites
+1. เปิด Google Cloud Console → Google Auth Platform สร้างหรือเลือก Project ของคุณ
+2. ตั้ง Branding เป็น NS Capital และใช้บัญชีของคุณเป็น Support/Developer contact
+3. สร้าง OAuth Client ประเภท **Web application**
+4. ใส่ Authorized JavaScript origin เป็น `https://biwmodify004.github.io` ไม่ใส่ `/Start-Building/` ถ้าทดสอบ Local ให้เพิ่ม `http://localhost:8080` และ origin ที่ใช้จริง
+5. ใช้ JavaScript callback ของ Google Identity Services จึงไม่ต้องสร้าง callback URL ของ ChatGPT หรือใส่ Client Secret ในเว็บ
+6. ถ้า Project ยังเป็น Testing ให้เพิ่มบัญชี Google ที่จะใช้งานใน Test users และตรวจข้อกำหนด Branding/Verification ที่ Console แสดง
+7. Homepage คือ URL เว็บนี้ และ Privacy policy คือ `https://biwmodify004.github.io/Start-Building/privacy.html` ตรวจว่าข้อความตรงกับการใช้งานจริงของคุณ
+8. คัดลอก **Client ID** จาก Web application ไปตั้งที่ Bridge ของแต่ละบัญชี ไม่ใช้ API key หรือ Client Secret แทน
 
-ข้อมูลโปรไฟล์และงานวิจัยบางส่วนอยู่ในเบราว์เซอร์ของเครื่องนั้น ส่วนประวัติจริงและกฎ Risk อยู่ที่ Bridge การเปลี่ยนอุปกรณ์ไม่ดึงโปรไฟล์ในเบราว์เซอร์ให้อัตโนมัติ และไม่ใช่ระบบ Cloud sync ของสมาชิกหลายคน
+**ตั้ง Backend บน Windows:**
+
+```powershell
+Set-Location C:\NS-Capital-Bridge
+py -m pip install -r requirements-google.txt
+$env:NS_GOOGLE_CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
+$env:NS_GOOGLE_ALLOWED_EMAILS = "YOUR_OWN_GOOGLE_EMAIL@gmail.com"
+$env:NS_ALLOWED_ORIGINS = "https://biwmodify004.github.io"
+py bridge.py --mode mt5
+```
+
+ค่าข้างต้นเป็น Placeholder ต้องแทนด้วยค่าจริงก่อนเริ่ม ถ้า Client ID/Allowlist/ไลบรารีไม่พร้อม Backend จะปิด Google Login โดยแสดงสาเหตุ ไม่ออกเซสชันจำลองและไม่อนุญาตทุก Gmail อัตโนมัติ ไม่ต้องใส่ Client Secret ใน GitHub หรือหน้าเว็บ
+
+Allowlist อีเมลใช้ Gmail หรือบัญชี Google Workspace ที่ Google ยืนยันโดเมน หากใช้ Google Account ที่ผูกอีเมลภายนอก ให้กำหนด `NS_GOOGLE_ALLOWED_SUBS` เป็น Google subject ID ที่ตรวจยืนยันแล้วแทน เพราะ sub เป็นตัวระบุบัญชีที่คงที่ ไม่ใช้ชื่อแสดงผลเป็นสิทธิ์
+
+Bridge แต่ละตัวอนุญาตการเข้าถึงเฉพาะบัญชี Terminal ของตัวเอง รายชื่อที่อนุญาตมีสิทธิ์อ่านข้อมูลบัญชีนั้น จึงยังไม่ใช่ระบบ SaaS แยก Tenant/พอร์ตให้สมาชิกที่สมัครเอง
+
+กด **ออกจากระบบและล้าง Token ในแท็บนี้** เพื่อเพิกถอนเซสชัน Google ที่แท็บนี้มีและล้าง credential ของโปรไฟล์ในหน่วยความจำ การออกจากระบบไม่ปิดสถานะที่โบรกเกอร์และไม่เพิกถอน Bridge/Trade token แบบคงที่ที่ใช้ใน EA/MCP เมื่อออฟไลน์จะล้าง credential ในแท็บ ส่วนเซสชัน Backend หมดอายุตามเวลา
+
+การใช้ Bridge token โดยตรงยังมีไว้สำหรับ EA, MCP และการเชื่อมส่วนตัวขั้นสูง ไม่ใช่ Google password หลัง Refresh ต้องเข้าสู่ระบบใหม่ ไม่มีการฝังรหัสผ่านหรือ Token ในไฟล์เว็บไซต์
 
 ## รู้จักหน้าจอ
 
@@ -165,7 +191,7 @@ EA ใช้ offset ที่คุณกำหนดเพื่อแปลง
 
 | รายการ | ใส่ที่ไหน | สิทธิ์ |
 | --- | --- | --- |
-| ChatGPT Login | หน้าเว็บไซต์/โฮสติ้ง | เข้า Site ตามสิทธิ์ |
+| Google Login | หน้าเว็บ + Google Identity + Bridge | ยืนยัน Google ID token/Allowlist แล้วออกเซสชันผูกพอร์ต |
 | Bridge token | เว็บ, EA, MCP client | อ่านข้อมูลและจัดการ Journal ของ Bridge นั้น |
 | Trade token | เว็บที่ต้องเทรด และ EA ของ MT4 ที่เปิดเทรด | ส่งคำสั่งและเปลี่ยนกฎ Risk |
 | Publish token | EA MT4 เท่านั้น | ส่งข้อมูลราคา สถานะและประวัติให้ Backend |
@@ -177,12 +203,14 @@ Token ทั้งสามของ Bridge ต้องสุ่มต่าง
 **มือถือไม่ได้มอง `127.0.0.1` เป็นคอมพิวเตอร์ของคุณ** แต่เป็นมือถือเอง การใช้จากหลายเครื่องต้องมี Reverse proxy หรือ Tunnel HTTPS ไปที่ Bridge บน Windows ใช้ hostname ของคุณจริง เช่น `https://bridge.your-domain.example` แล้วตั้ง host/origin ให้ตรง
 
 ```powershell
-$env:NS_ALLOWED_ORIGINS = "https://ns-capital-terminal.biw-modify004.chatgpt.site"
+$env:NS_ALLOWED_ORIGINS = "https://biwmodify004.github.io"
 $env:NS_ALLOWED_HOSTS = "localhost,127.0.0.1,::1,bridge.your-domain.example"
 py bridge.py --mode mt5 --port 8787
 ```
 
 ตัวอย่างโดเมนข้างต้นเป็น Placeholder ต้องแทนด้วยโดเมน Gateway ที่คุณตั้งจริง คงพอร์ต Bridge ไว้เฉพาะ loopback ให้ proxy ส่ง Host ที่อยู่ใน allowlist และส่ง `Authorization`/`X-Trade-Token` โดยไม่เขียนค่าเหล่านี้ลง access log
+
+Origin ใช้เฉพาะ scheme + hostname เช่น `https://biwmodify004.github.io` ไม่ใส่ `/Start-Building/` หากตั้ง environment เดิมของ Sites อยู่ให้เพิ่ม Origin ใหม่นี้ก่อนเชื่อมเว็บใหม่
 
 ทุกคำขอที่มี Origin ต้องตรง allowlist ห้ามแก้เป็น `*` เพื่อข้ามปัญหา ใน production ต้องใช้ HTTPS ที่ใบรับรองถูกต้องและกำหนดการเข้าถึง Gateway ให้เหมาะกับ Token ของคุณ คู่มือนี้ไม่ได้สร้าง Tunnel โดเมน Windows VPS หรือใบรับรองให้เอง
 
@@ -390,9 +418,9 @@ Paper Trading เป็นบัญชีจำลองในเบราว์
 
 คัดลอกลิงก์ทันที ระบบเก็บเฉพาะ Hash ของ Token จึงไม่แสดงลิงก์เดิมซ้ำ รายงานมีสถิติรวมและกราฟ ไม่มีเลขบัญชี Ticket, Position ID, โน้ตหรือ Trade token เป็น Snapshot คงที่ ไม่อัปเดตผลหลังสร้าง
 
-ผู้มีลิงก์และเข้าถึง Site/Gateway ได้อ่านรายงานจนถึงเวลาหมดอายุ อย่าใส่ข้อมูลส่วนตัวในนามแฝงหรือนำลิงก์ลงที่สาธารณะโดยไม่ตั้งใจ ถ้าไม่ต้องการให้ใช้ต่อ กด **ยกเลิกลิงก์** ได้ทันทีจากรายการรายงาน
+ผู้มีลิงก์และเข้าถึง Gateway ได้อ่านรายงานจนถึงเวลาหมดอายุ อย่าใส่ข้อมูลส่วนตัวในนามแฝงหรือนำลิงก์ลงที่สาธารณะโดยไม่ตั้งใจ ถ้าไม่ต้องการให้ใช้ต่อ กด **ยกเลิกลิงก์** ได้ทันทีจากรายการรายงาน
 
-**สิทธิ์ Site ยังคงเดิม:** เว็บนี้เป็นส่วนตัว จึงต้องให้สิทธิ์ผู้รับผ่าน Site ก่อนหรือปรับนโยบายเข้าถึงโดยเจ้าของ รายงานไม่ทำให้ Terminal ทั้งเว็บเป็น Public และไม่ได้สร้าง Public broker-verified profile
+**การเข้าถึงรายงาน:** หน้าแสดงรายงานบน GitHub Pages เป็น Public แต่ Backend ส่ง Snapshot เฉพาะเมื่อมี Report token ที่ถูกต้องและยังไม่หมดอายุ/ถูกยกเลิก ลิงก์นี้ไม่ให้สิทธิ์อ่านพอร์ตหรือส่งคำสั่ง และไม่ได้สร้าง broker-verified profile
 
 Bridge ต้องทำงานและ Gateway ต้องเข้าถึงได้ตอนเปิดรายงาน ลิงก์ใส่ Report token ใน URL fragment แล้วส่งไปอ่าน Snapshot แยกจากเส้นทางเทรด ไม่ให้สิทธิ์อ่านบัญชีอื่นหรือส่งคำสั่ง
 
@@ -438,11 +466,11 @@ py database.py "$env:LOCALAPPDATA\NSCapital\trading.sqlite3" ".\backup\trading-$
 
 โหมดออฟไลน์เก็บเฉพาะเปลือกแอปและข้อมูลในเครื่องที่มีอยู่ ราคา บัญชี AI และการส่งคำสั่งต้องออนไลน์ Service worker ไม่เก็บ API/Token/Quote/Order และไม่ Queue คำสั่งไว้ส่งเมื่อกลับออนไลน์
 
-เมื่ออัปเดตเวอร์ชัน ให้จบการตรวจคำสั่ง ปิดแท็บ NS Capital ทุกแท็บแล้วเปิดใหม่ ระบบไม่บังคับ Reload ระหว่างเทรด ล็อกอินของ Site และนโยบาย Local network ของอุปกรณ์ยังมีผลแม้ติดตั้ง PWA แล้ว
+เมื่ออัปเดตเวอร์ชัน ให้จบการตรวจคำสั่ง ปิดแท็บ NS Capital ทุกแท็บแล้วเปิดใหม่ ระบบไม่บังคับ Reload ระหว่างเทรด นโยบาย Local network และการยืนยัน Bridge ของอุปกรณ์ยังมีผลแม้ติดตั้ง PWA แล้ว
 
 ## Deployment และการดูแล production
 
-เว็บที่ให้ไว้เผยแพร่บน Sites แล้ว โดยใช้สิทธิ์ส่วนตัวและ Authentication ของโฮสติ้ง Frontend ไม่สามารถรัน MT4/MT5/Python หรือ Ollama บนเครื่อง Windows ให้คุณเอง ต้องมีส่วน Backend ตามผังนี้:
+เว็บหลักใช้ GitHub Pages และ GitHub Actions โดยหน้าเว็บเป็น Public ข้อมูลบัญชีจริงยังอยู่หลัง Google session หรือ Token ของ Bridge Frontend ไม่สามารถรัน MT4/MT5/Python หรือ Ollama บนเครื่อง Windows ให้คุณเอง ต้องมีส่วน Backend ตามผังนี้:
 
 **เว็บ HTTPS/PWA → HTTPS Gateway → Broker Bridge + SQLite → MT4/MT5 บน Windows** และ **Bridge → Ollama/LM Studio/API** เมื่อตั้ง AI
 
@@ -463,13 +491,13 @@ py database.py "$env:LOCALAPPDATA\NSCapital\trading.sqlite3" ".\backup\trading-$
 cd ns-capital-terminal
 npm ci
 npm test
-python -W error::ResourceWarning -m unittest discover -s tests -p 'test_*.py' -q
-npm run build
+npm run test:python
+npm run build:pages
 ```
 
-ผล Build คือ `dist/` ซึ่งมีเว็บ ไอคอน คู่มือและชุด Bridge ไม่มีฐานจริงหรือ Token ตรวจ CI และ PR ก่อน Merge ค่า Site identity อยู่ใน `.openai/hosting.json` ห้ามเปลี่ยน project_id เมื่ออัปเดต Site เดิม
+ผล Build คือ `dist/` ซึ่งมีเว็บ ไอคอน คู่มือและชุด Bridge ไม่มีฐานจริงหรือ Token ตรวจ CI และ PR ก่อน Merge การตั้งค่าใหม่อยู่ใน `deployment/github-pages.json` และ Workflow `.github/workflows/ns-capital-pages.yml` ที่ root Repository
 
-การเผยแพร่ผ่าน Sites ใช้กระบวนการ Build/Package/Save version/Deploy ของ Sites เพื่อคง Authentication และ Audience เดิม การ Push GitHub branch เพียงอย่างเดียวไม่ได้ยืนยันว่าเวอร์ชันนั้นขึ้น production แล้ว
+ตั้งค่าครั้งแรกที่ Repository → Settings → Pages → Build and deployment → Source: GitHub Actions เมื่อ Merge/PUSH main ที่เปลี่ยนแอป Workflow จะทดสอบ Build อัปโหลด Artifact และ Deploy ให้อัตโนมัติ ดูผลใน Actions หรือ Environments → github-pages ต้องเห็น Deployment สำเร็จก่อนถือว่าเว็บใหม่พร้อมใช้ เวอร์ชันเก่าบน Sites ไม่ได้ถูกลบอัตโนมัติ
 
 ## อัปเกรดจากเวอร์ชันก่อนหน้า
 
@@ -488,9 +516,11 @@ npm run build
 
 | อาการ | ตรวจและแก้ตามลำดับ |
 | --- | --- |
-| เข้าเว็บไม่ได้/Access denied | ตรวจบัญชี ChatGPT และสิทธิ์ Site ของผู้ใช้ เข้าหน้า Login อีกครั้ง การมีลิงก์ไม่เท่ากับมีสิทธิ์ |
+| GitHub Pages แสดง 404 | เปิด Pages Source เป็น GitHub Actions ตรวจ Workflow บน main และใช้ URL ที่มี /Start-Building/ ครบ |
 | Binance ไม่อัปเดต | ตรวจอินเทอร์เน็ต สถานะ Feed กด Reconnect และตรวจว่าเครือข่ายอนุญาต API/WebSocket ของ Binance |
-| เชื่อม Bridge ไม่ได้ | ตรวจ process, port, URL, Token, HTTPS และ Origin/Host allowlist; มือถือใช้ localhost ของ PC ไม่ได้ |
+| เชื่อม Bridge ไม่ได้ / Failed to fetch | เปิด bridge.py ก่อน ใช้ URL หลัก เช่น http://127.0.0.1:8787 ไม่ใส่ /mcp ตรวจ port, HTTPS, Origin/Host และสิทธิ์ Local network; มือถือใช้ localhost ของ PC ไม่ได้ |
+| Google Login ไม่แสดง | ตรวจ Client ID แบบ Web, requirements-google.txt, Allowlist และ Origin ใน Google Cloud/Bridge ให้ตรง ไม่มี path /Start-Building/ ใน Origin |
+| Google Login ไม่อนุญาต | ใช้บัญชีที่อยู่ใน Allowlist/Test users ตรวจวันหมดอายุ/nonce แล้วกดเริ่มใหม่ ไม่เปลี่ยน Allowlist เป็นทุกบัญชีเพื่อข้ามปัญหา |
 | `Invalid bridge token` | Token เปลี่ยนหลัง Restart หรือใส่ผิด Bridge ใส่ค่าใหม่และตรวจบัญชีก่อนทำงาน |
 | MT5 initialize failed | เปิด Terminal ที่ล็อกอินถูกตัว ตรวจ `NS_MT5_PATH` และแพ็กเกจ Python ของ Windows |
 | MT4 ไม่ส่งราคา/ประวัติ | ตรวจ Compile, EA บนกราฟ, WebRequest, Bridge/Publish token, All History, HistoryReady และ Experts log |
@@ -501,7 +531,7 @@ npm run build
 | AI Configured แต่ใช้ไม่ได้ | ตรวจเซิร์ฟเวอร์โมเดล, `/v1`, ชื่อจาก `/models`, โมเดลโหลดอยู่, Key และทรัพยากร Inference |
 | Win Rate ต่างจาก Statement | เทียบช่วงเวลาปิด/สกุลเงิน/ต้นทุน, MT4 ticket vs MT5 cycle, Partial close, ขาเปิดนอกช่วงนำเข้าและต้นทุนแยกบัญชี |
 | ตั้ง DD ใหม่ไม่ได้ | ต้องปิดทุกสถานะ มีข้อมูลล่าสุดและระบุเหตุผล Reset DD ไม่ล้าง Daily halt |
-| Track Record เปิดไม่ได้ | ตรวจสิทธิ์ Site, Bridge/Gateway, ลิงก์ครบ, อายุและสถานะยกเลิก ไม่ใช้ Trade token อ่านรายงาน |
+| Track Record เปิดไม่ได้ | ตรวจ Bridge/Gateway, Report token, ลิงก์ครบ, อายุและสถานะยกเลิก ไม่ใช้ Trade token อ่านรายงาน |
 | Leaderboard ว่าง | ต้องยินยอม ผ่านเกณฑ์ 20 เทรด/30 วัน มีผลขาดทุนให้คำนวณ PF และ Snapshot ยังไม่เกิน 24 ชั่วโมง |
 | หน้ายังเป็นรุ่นเก่า | ปิดทุกแท็บ/PWA แล้วเปิดใหม่ ตรวจ Footer ก่อนล้างข้อมูลเบราว์เซอร์ เก็บ Backup workspace ก่อน |
 | เปลี่ยนเครื่องแล้วข้อมูลหาย | โปรไฟล์/Research อยู่ในเบราว์เซอร์ ส่วน Ledger อยู่ที่ Bridge ต้องเชื่อม Gateway เดิมและบัญชีเดิม |
@@ -528,6 +558,9 @@ npm run build
 
 การทดสอบซอฟต์แวร์ใช้บัญชี/ราคา Fixture ที่ระบุชัดใน Tests ไม่ใช่ข้อมูล Sample ที่นำไปแสดงเป็นบัญชีจริงบนเว็บ ยังต้องตรวจด้วย MetaEditor, Terminal/บัญชีโบรกเกอร์, โมเดลที่คุณติดตั้ง และอุปกรณ์จริงของคุณ ไม่มีการรับรองว่าการเทรดหรือระบบ AI จะสร้างกำไร
 
+- [Google: สร้าง Web Client ID](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid)
+- [Google: ตรวจ ID token ที่ Backend](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token)
+- [GitHub Pages: Custom workflow](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
 - [MetaQuotes: Python integration](https://www.mql5.com/en/docs/python_metatrader5)
 - [MetaQuotes: history_deals_get](https://www.mql5.com/en/docs/python_metatrader5/mt5historydealsget_py)
 - [MetaQuotes: order_calc_profit](https://www.mql5.com/en/docs/python_metatrader5/mt5ordercalcprofit_py)

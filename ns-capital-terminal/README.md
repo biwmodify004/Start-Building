@@ -2,7 +2,7 @@
 
 NS Capital’s personal trading workspace: real market charts, multiple MetaTrader accounts, a persistent Auto Journal, backend risk checks and optional model-assisted coaching. The chart core is **Vela 0.8.4**; the surrounding application is independently implemented. LuxAlgo private services and premium indicator code are not included.
 
-**[Open the private website](https://ns-capital-terminal.biw-modify004.chatgpt.site)** · **[คู่มือภาษาไทยฉบับเต็ม](docs/USER-MANUAL-TH.md)** · **[Deployment](docs/DEPLOYMENT-TH.md)** · **[Changelog](CHANGELOG.md)**
+**[Open the GitHub Pages website](https://biwmodify004.github.io/Start-Building/)** · **[คู่มือภาษาไทยฉบับเต็ม](docs/USER-MANUAL-TH.md)** · **[Deployment](docs/DEPLOYMENT-TH.md)** · **[Changelog](CHANGELOG.md)**
 
 ## Product scope
 
@@ -16,17 +16,17 @@ NS Capital’s personal trading workspace: real market charts, multiple MetaTrad
 | Risk | Server-side per-trade SL estimate, daily-loss and observed equity-DD gates, latched halts and reduction/close paths |
 | AI | Ollama, LM Studio or compatible API; validated trade drafts and journal coaching from backend-computed metrics; no AI execution |
 | Sharing | Explicit opt-in, redacted, expiring/revocable report snapshots; a qualifying internal Bridge leaderboard |
-| Website | Responsive terminal/journal, private Sites ChatGPT sign-in, PWA shell, light/dark theme and searchable 28-chapter Thai manual |
+| Website | Responsive terminal/journal, Google sign-in verified by the Bridge, PWA shell, light/dark theme and searchable 28-chapter Thai manual |
 
 No generated prices or sample accounts appear as actual financial records. Test fixtures are isolated under `tests/`.
 
 ## Architecture
 
-The published frontend is a static PWA. Sites owns website authentication and audience access. Python Bridge, SQLite and the logged-in MT4/MT5 terminal run on the owner’s Windows machine/VPS; a user-configured HTTPS gateway enables other devices. Ollama/LM Studio/API access runs through the Bridge. The website does not provision a Windows VPS or run MetaTrader in the browser.
+The published frontend is a static PWA. GitHub Pages serves the public frontend. Google Identity Services signs users in; the Bridge verifies Google signatures, audience/issuer/expiry, a single-use nonce and an owner allowlist before issuing an account-bound 30-minute session. Python Bridge, SQLite and the logged-in MT4/MT5 terminal run on the owner’s Windows machine/VPS; a user-configured HTTPS gateway enables other devices. Ollama/LM Studio/API access runs through the Bridge. The website does not provision a Windows VPS or run MetaTrader in the browser.
 
 The SQLite account namespace is platform + server + login. Multiple account Bridge processes on one host may share one local database file, with separate ports/tokens and one execution Bridge per account. This is not a multi-tenant SaaS backend or a database shared across network filesystems/VPS instances.
 
-Track-record reports disclose their terminal-Bridge origin and lack of independent broker verification. The existing Site audience remains private, including its report page; sharing a report link does not make the entire Site public.
+Track-record reports disclose their terminal-Bridge origin and lack of independent broker verification. The report viewer is public; its opaque report capability is required to read an unexpired, unrevoked snapshot from the Bridge.
 
 ## Development
 
@@ -36,11 +36,11 @@ Requires Node 22.13+ and Python 3.11+. Production MT5 additionally needs Windows
 npm ci
 npm test
 npm run test:python
-npm run build
+npm run build:pages
 npm start
 ```
 
-Open `http://127.0.0.1:8080`. Build output is `dist/`, including the website, `manual.html`, downloadable Thai manual and complete Broker Bridge ZIP. Browser-local research works without a model. Native Sites login paths require Sites hosting; a different host needs its own server-side identity/access integration.
+Open `http://127.0.0.1:8080`. Build output is `dist/`, including the website, `manual.html`, downloadable Thai manual and complete Broker Bridge ZIP. Browser-local research works without a model. Google Login requires a Google Web Client ID, explicit owner allowlist and the optional requirements-google.txt package installed on the Windows Bridge. No Client Secret is used in the browser.
 
 | Source | Purpose |
 | --- | --- |
@@ -55,7 +55,7 @@ In `biwmodify004/Start-Building`, this app is under `ns-capital-terminal/`; the 
 
 ## Setup and operational boundaries
 
-Follow the [Thai manual](docs/USER-MANUAL-TH.md) for MT4/MT5 installation, token roles, HTTPS, multiple accounts, risk configuration, AI/MCP, backup/restore and troubleshooting. Updating to 1.8 requires all Bridge modules, the updated MT4 EA if used, a private publisher token for MT4, complete history and explicit per-account risk limits before new entries.
+Follow the [Thai manual](docs/USER-MANUAL-TH.md) for MT4/MT5 installation, token roles, HTTPS, multiple accounts, risk configuration, AI/MCP, backup/restore and troubleshooting. Updating to 1.9 requires all Bridge modules, the updated MT4 EA if used, a private publisher token for MT4, complete history and explicit per-account risk limits before new entries.
 
 New orders are rechecked at preview and execution. Daily and DD halts persist in SQLite. Closing and tightening stops can remain available while new risk is blocked. This does not auto-liquidate existing positions, reserve aggregate portfolio exposure, control other terminal apps, or guarantee a maximum realized loss during gaps/slippage. See the manual’s exact formulas and limitations.
 
@@ -72,3 +72,9 @@ Fixture tests do not verify real browser rendering/touch, broker execution, Meta
 ## License and attribution
 
 [Vela](https://github.com/LuxAlgo/Vela) is Apache-2.0 with its NOTICE requirement. Visible [Vela attribution](https://velacharts.dev), `vendor/VELA-LICENSE.txt`, `vendor/VELA-NOTICE.txt` and dependency notices ship with each build. No LuxAlgo private source, premium indicator code, private API or account session is included. Third-party components retain their licenses.
+
+## GitHub Pages deployment
+
+Root `.github/workflows/ns-capital-pages.yml` tests, builds and deploys changes on `main`; the artifact is scoped to `/Start-Building/`. Enable Repository Settings → Pages → Source: GitHub Actions once. The workflow needs Pages and OIDC write permissions only in its deploy job. `deployment/github-pages.json` records the target. This replaces Sites as the primary deployment; the old private Sites publication is retained unchanged.
+
+Google Login setup: [Thai user manual](docs/USER-MANUAL-TH.md#google-login). Backend environment: `NS_GOOGLE_CLIENT_ID`, `NS_GOOGLE_ALLOWED_EMAILS` (Google-hosted accounts) or `NS_GOOGLE_ALLOWED_SUBS`, and `NS_ALLOWED_ORIGINS=https://biwmodify004.github.io`. OAuth client creation and Windows configuration must be performed with the owner's actual settings; no placeholder credential is active.

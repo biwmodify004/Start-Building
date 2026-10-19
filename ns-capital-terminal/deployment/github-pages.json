@@ -1,0 +1,10 @@
+{
+  "provider": "github-pages",
+  "repository": "biwmodify004/Start-Building",
+  "branch": "main",
+  "basePath": "/Start-Building/",
+  "expectedUrl": "https://biwmodify004.github.io/Start-Building/",
+  "backend": "Owner-managed Windows Broker Bridge over HTTPS",
+  "frontendAccess": "public",
+  "accountAccess": "Backend-verified Google session or Bridge token; separate Trade token for execution"
+}

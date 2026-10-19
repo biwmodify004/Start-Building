@@ -1,13 +1,14 @@
 /* Static shell only. No quotes, account data, tokens or execution requests. */
 const REVISION='__NS_SHELL_REVISION__';
-const PREFIX='ns-capital-shell-';
+const BASE=new URL('./',self.location.href||self.location.origin+'/sw.js').pathname;
+const PREFIX='ns-capital-shell-'+encodeURIComponent(BASE)+'-';
 const CACHE=PREFIX+REVISION;
-const SHELL=['/index.html','/app.mjs','/style.css','/responsive.css','/terminal.css','/icons.svg','/manifest.webmanifest','/app-icons/icon-192.png','/app-icons/icon-512.png','/app-icons/maskable-512.png','/app-icons/apple-touch-icon.png'];
+const SHELL=['index.html','app.mjs','style.css','responsive.css','terminal.css','icons.svg','manifest.webmanifest','app-icons/icon-192.png','app-icons/icon-512.png','app-icons/maskable-512.png','app-icons/apple-touch-icon.png'].map(path=>BASE+path);
 const STATIC=new Set(SHELL);
 async function validShell(path,response){
  if(!response||!response.ok||response.redirected||new URL(response.url||self.location.origin+path).origin!==self.location.origin)return false;
  const type=response.headers.get('content-type')||'';
- if(path==='/index.html')return type.includes('text/html')&&(await response.clone().text()).includes('name="ns-app-shell" content="'+REVISION+'"');
+ if(path===BASE+'index.html')return type.includes('text/html')&&(await response.clone().text()).includes('name="ns-app-shell" content="'+REVISION+'"');
  if(path.endsWith('.mjs'))return /javascript|ecmascript/.test(type);
  if(path.endsWith('.css'))return type.includes('text/css');
  if(path.endsWith('.png'))return type.includes('image/png');
@@ -24,8 +25,8 @@ self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const nam
 self.addEventListener('fetch',event=>{
  const request=event.request,url=new URL(request.url);
  if(request.method!=='GET'||url.origin!==self.location.origin)return;
- if(request.mode==='navigate'&&(url.pathname==='/'||url.pathname==='/index.html')){
-  event.respondWith((async()=>{try{const response=await fetch(request);if(!await validShell('/index.html',response)){if(response.ok&&!response.redirected&&(response.headers.get('content-type')||'').includes('text/html')&&(await response.clone().text()).includes('name="ns-app-shell"'))return(await caches.match('/index.html',{cacheName:CACHE}))||response;return response;}const cache=await caches.open(CACHE);await cache.put('/index.html',response.clone());return response;}catch{const cached=await caches.match('/index.html',{cacheName:CACHE});return cached||new Response('Connect to the internet to open NS Capital.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});}})());return;
+ if(request.mode==='navigate'&&(url.pathname===BASE||url.pathname===BASE+'index.html')){
+  event.respondWith((async()=>{try{const response=await fetch(request);if(!await validShell(BASE+'index.html',response)){if(response.ok&&!response.redirected&&(response.headers.get('content-type')||'').includes('text/html')&&(await response.clone().text()).includes('name="ns-app-shell"'))return(await caches.match(BASE+'index.html',{cacheName:CACHE}))||response;return response;}const cache=await caches.open(CACHE);await cache.put(BASE+'index.html',response.clone());return response;}catch{const cached=await caches.match(BASE+'index.html',{cacheName:CACHE});return cached||new Response('Connect to the internet to open NS Capital.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});}})());return;
  }
  if(!STATIC.has(url.pathname)||url.search)return;
  event.respondWith((async()=>{const cache=await caches.open(CACHE),cached=await cache.match(url.pathname);if(cached)return cached;const response=await fetch(request);if(await validShell(url.pathname,response))await cache.put(url.pathname,response.clone());return response;})());

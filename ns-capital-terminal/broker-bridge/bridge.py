@@ -23,6 +23,7 @@ from ai_advisor import AITradeAdvisor
 from database import LedgerStore, number as ledger_number
 from journal import JournalService
 from analytics import JournalAnalytics
+from google_auth import GoogleLogin
 from mcp_server import VERSIONS as MCP_VERSIONS, handle as mcp_handle, call_tool as mcp_call_tool
 
 PROTOCOL = "ns-market-bridge/1"
@@ -276,12 +277,13 @@ class MT4Source:
                     raise RuntimeError("MT4 EA did not respond. Check Experts log, WebRequest and UTC offset")
             return filtered()
 
-def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=False, trade_token=None, store=None, publish_token=None, history_days=90):
+def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=False, trade_token=None, store=None, publish_token=None, history_days=90, google_login=None):
     if enable_trading and (not trade_token or len(trade_token) < 32 or trade_token == token):
         raise ValueError("Trading needs a separate 32+ character trade token")
     store = store if store is not None else LedgerStore(':memory:')
     journal = JournalService(source,store,days=history_days)
     analytics = JournalAnalytics(journal)
+    google_login = google_login if google_login is not None else GoogleLogin(source)
     trading = TradingService(source, enabled=enable_trading,journal=journal)
     advisor = AITradeAdvisor(source, trading)
     def status_response():
@@ -333,7 +335,9 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
             if not self.host_ok() or not self.origin_ok():
                 self.reply(403, {"error": "Host or Origin is not allowed"}); return False
             provided = self.headers.get("Authorization", "")
-            if not hmac.compare_digest(provided.encode("utf-8"), ("Bearer " + token).encode("utf-8")):
+            static = hmac.compare_digest(provided.encode("utf-8"), ("Bearer " + token).encode("utf-8"))
+            session = None if static or publish or not provided.startswith('Bearer ') else google_login.session(provided[7:], self.headers.get('Origin',''))
+            if not static and not session:
                 self.reply(401, {"error": "Invalid bridge token"}); return False
             if trade and (not enable_trading or not hmac.compare_digest(self.headers.get("X-Trade-Token", "").encode("utf-8"), (trade_token or "").encode("utf-8"))):
                 self.reply(403, {"error":"Manual trading is disabled or the separate Trade token is invalid"}); return False
@@ -351,6 +355,9 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
             self.send_header("Access-Control-Allow-Private-Network", "true")
             self.end_headers()
         def do_GET(self):
+            if urlsplit(self.path).path == '/v1/auth/config':
+                if not self.host_ok() or not self.origin_ok():return self.reply(403,{'error':'Origin or Host is not allowed'})
+                return self.reply(200,google_login.config())
             if not self.authorized():
                 return
             try:
@@ -422,6 +429,21 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
             except Exception:
                 self.reply(503, {"error": "Market data unavailable. Check the logged-in terminal and EA / history"})
         def do_POST(self):
+            if urlsplit(self.path).path in ('/v1/auth/challenge','/v1/auth/google','/v1/auth/logout'):
+                if not self.host_ok() or not self.headers.get('Origin') or not self.origin_ok():return self.reply(403,{'error':'A permitted browser Origin is required'})
+                try:
+                    path=urlsplit(self.path).path;origin=self.headers['Origin'];address=self.client_address[0]
+                    size=int(self.headers.get('Content-Length','0'))
+                    if not 0<size<=20000 or not self.headers.get('Content-Type','').startswith('application/json'):raise ValueError('A small JSON sign-in request is required')
+                    raw=json.loads(self.rfile.read(size))
+                    if not isinstance(raw,dict):raise ValueError('Invalid sign-in request')
+                    if path=='/v1/auth/challenge':return self.reply(200,google_login.challenge(origin,address))
+                    if path=='/v1/auth/google':return self.reply(200,google_login.login(raw,origin,address))
+                    bearer=self.headers.get('Authorization','')
+                    if not bearer.startswith('Bearer ') or not google_login.session(bearer[7:],origin):return self.reply(401,{'error':'Google session is unavailable or expired'})
+                    google_login.logout(bearer[7:]);return self.reply(200,{'ok':True})
+                except (ValueError,TypeError,KeyError) as error:return self.reply(400,{'error':str(error)})
+                except Exception:return self.reply(503,{'error':'Google sign-in unavailable; check terminal and Bridge configuration'})
             if urlsplit(self.path).path == '/v1/track-record/view':
                 if not self.host_ok() or not self.origin_ok():return self.reply(403,{'error':'Origin or Host is not allowed'})
                 try:
@@ -570,7 +592,7 @@ def main():
             print("Separate Trade token (only for manual execution): " + trade_token, flush=True)
         if len(trade_token) < 32 or trade_token == token or any(ord(c) < 33 or ord(c) > 126 for c in trade_token):
             raise SystemExit("NS_TRADE_TOKEN must be separate from the bridge token and contain 32+ printable ASCII characters")
-    origins = set(filter(None, (x.strip() for x in os.getenv("NS_ALLOWED_ORIGINS", "https://ns-capital-terminal.biw-modify004.chatgpt.site,http://127.0.0.1:8080,http://localhost:8080").split(","))))
+    origins = set(filter(None, (x.strip() for x in os.getenv("NS_ALLOWED_ORIGINS", "https://biwmodify004.github.io,https://ns-capital-terminal.biw-modify004.chatgpt.site,http://127.0.0.1:8080,http://localhost:8080").split(","))))
     hosts = set(filter(None, os.getenv("NS_ALLOWED_HOSTS", "localhost,127.0.0.1,::1").split(",")))
     source = MT5Source(os.getenv("NS_MT5_PATH")) if args.mode == "mt5" else MT4Source()
     publish_token=os.getenv('NS_PUBLISH_TOKEN','')

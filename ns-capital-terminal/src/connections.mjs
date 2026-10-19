@@ -61,9 +61,9 @@ export function setupConnections({broker,tr,theme,language,onConnect,onDisconnec
  $('broker-btn').addEventListener('click',openBroker);$('broker-manage').addEventListener('click',openBroker);
  $('account-new').addEventListener('click',newAccount);$('broker-asset-class').addEventListener('change',renderBroker);
  $('broker-search').addEventListener('input',renderBroker);
- async function connectAccount(){
+ async function connectAccount(expectedAccount){
   if(busy)return null;busy=true;$('broker-connect').disabled=true;$('broker-disconnect').disabled=true;renderAccounts();$('broker-error').textContent='';$('broker-status').textContent=tr('กำลังตรวจบัญชีและโหลดสินทรัพย์…','Verifying account and loading instruments…');
-  try{const url=$('broker-url').value,token=$('broker-token').value,tradeToken=$('broker-trade-token').value,profile=accounts.get(editingId),label=$('account-label').value,kind=$('account-kind').value;await onDisconnect();accounts.disconnect();const status=await broker.connect({url,token,tradeToken,expectedAccount:profile?.accountKey});const added=accounts.add({label,url,kind,status,token,tradeToken});editingId=added.id;$('broker-token').value=$('broker-trade-token').value='';$('broker-asset-class').value=kind;await onConnect(added);renderBroker();return added;}
+  try{const url=$('broker-url').value,token=$('broker-token').value,tradeToken=$('broker-trade-token').value,profile=accounts.get(editingId),label=$('account-label').value,kind=$('account-kind').value;await onDisconnect();accounts.disconnect();const status=await broker.connect({url,token,tradeToken,expectedAccount:profile?.accountKey||expectedAccount});const added=accounts.add({label,url,kind,status,token,tradeToken});editingId=added.id;$('broker-token').value=$('broker-trade-token').value='';$('broker-asset-class').value=kind;await onConnect(added);renderBroker();return added;}
   catch(error){await onDisconnect();accounts.disconnect();renderBroker();$('broker-error').textContent=error.message;return null;}
   finally{busy=false;$('broker-connect').disabled=false;$('broker-disconnect').disabled=!broker.connection;renderAccounts();onChange();}
  }
@@ -79,5 +79,6 @@ export function setupConnections({broker,tr,theme,language,onConnect,onDisconnec
  $('broker-disconnect').addEventListener('click',async()=>{await onDisconnect();accounts.disconnect();$('broker-token').value=$('broker-trade-token').value='';renderBroker();});
  $('broker-pair').addEventListener('change',()=>onSelect($('broker-pair').value));
  renderGlobalList();renderBroker();
- return {openGlobal,openBroker,renderBroker,accounts,activateAccount,isBusy:()=>busy,refreshLanguage(){renderGlobalList();if($('global-dialog').open)renderGlobal();renderBroker();},refreshTheme(){if($('global-dialog').open)renderGlobal();}};
+ async function connectWithGoogle({url,token,tradeToken,accountKey,user}){if(busy)throw new Error('กำลังเชื่อมบัญชีอื่น กรุณารอ');newAccount();const old=accounts.profiles.find(p=>p.url===url&&p.accountKey===accountKey);editingId=old?.id||null;$('account-label').value=old?.label||user.name+' · Google';$('broker-url').value=url;$('broker-token').value=token;$('broker-trade-token').value=tradeToken;const profile=await connectAccount(accountKey);if(!profile)throw new Error($('broker-error').textContent||'ตรวจบัญชีกับ Backend ไม่สำเร็จ');return profile;}
+ return {openGlobal,openBroker,renderBroker,accounts,activateAccount,connectWithGoogle,isBusy:()=>busy,refreshLanguage(){renderGlobalList();if($('global-dialog').open)renderGlobal();renderBroker();},refreshTheme(){if($('global-dialog').open)renderGlobal();}};
 }

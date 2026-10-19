@@ -1,3 +1,5 @@
+> **รุ่น 1.9:** เว็บหลักย้าย GitHub Pages รองรับ Google Login ที่ Backend ตรวจจริง ติดตั้ง requirements-google.txt และตั้ง NS_GOOGLE_CLIENT_ID/Allowlist ตาม USER-MANUAL-TH.md ก่อนใช้ Google Sign-in; ช่อง Bridge URL ใช้ URL หลัก ไม่ใส่ /mcp
+
 > **รุ่น 1.8:** ใช้ไฟล์ทั้งชุดรวม database.py, journal.py, analytics.py และ risk.py ต้องตั้ง Backend Risk ก่อนเปิดใหม่ MT4 ต้องอัปเดต EA/Publish token/All History อ่านคู่มือฉบับเต็ม USER-MANUAL-TH.md ใน ZIP หรือหน้า manual.html ของเว็บก่อนเริ่ม
 
 # NS Capital · ราคาโบรกเกอร์ + MCP

@@ -110,6 +110,6 @@ SQLite ใช้ transaction และ synchronous FULL สำหรับ durab
 
 ตั้งเกณฑ์สังเกตพฤติกรรมแยกบัญชีได้ ผลเป็นหลักฐานตามเงื่อนไข ไม่ใช่การวินิจฉัยอารมณ์ และไม่บล็อกคำสั่ง AI Coaching ใช้สถิติ Backend ไม่ส่งเลขบัญชี/Token/โน้ต และไม่มีสิทธิ์ Execute
 
-Track Record สร้างเมื่อผู้ใช้ยินยอม เป็น Snapshot รวมที่ไม่มีข้อมูลระบุตัวบัญชี Token เก็บเฉพาะ Hash ยกเลิก/หมดอายุได้ หน้ารายงานยังใช้สิทธิ์เข้าถึง Site ปัจจุบัน และไม่ใช่ Broker-verified record Leaderboard อยู่ภายใน Bridge เดียว ใช้ PF 30 วัน มีอย่างน้อย 20 เทรดปิดและผลขาดทุน Snapshot ที่ผู้ใช้กดอัปเดตหมดอายุ 24 ชั่วโมง
+Track Record สร้างเมื่อผู้ใช้ยินยอม เป็น Snapshot รวมที่ไม่มีข้อมูลระบุตัวบัญชี Token เก็บเฉพาะ Hash ยกเลิก/หมดอายุได้ หน้ารายงานบน GitHub Pages เป็น Public แต่ต้องมี Report capability ที่ยังใช้ได้ และไม่ใช่ Broker-verified record Leaderboard อยู่ภายใน Bridge เดียว ใช้ PF 30 วัน มีอย่างน้อย 20 เทรดปิดและผลขาดทุน Snapshot ที่ผู้ใช้กดอัปเดตหมดอายุ 24 ชั่วโมง
 
 รายละเอียดครบและขั้นตอนอยู่ใน USER-MANUAL-TH.md ที่มากับ ZIP และ manual.html บนเว็บ

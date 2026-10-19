@@ -17,6 +17,7 @@ export class TradingAccounts{
   Object.assign(profile,{label:String(label||status.broker).trim().slice(0,80),url:endpoint,kind:['cfd','futures','all'].includes(kind)?kind:'all',broker:String(status.broker).slice(0,160),platform:String(status.platform),account:{id:String(status.account.id),server:String(status.account.server),currency:String(status.account.currency||'')},accountKey:key});
   this.#tokens.set(profile.id,token);this.#tradeTokens.set(profile.id,tradeToken);this.activeId=profile.id;this.save();return profile;
  }
+ signOut(){this.#tokens.clear();this.#tradeTokens.clear();this.activeId=null;}
  disconnect(){this.activeId=null;}
  remove(id){this.profiles=this.profiles.filter(p=>p.id!==id);this.#tokens.delete(id);this.#tradeTokens.delete(id);if(this.activeId===id)this.activeId=null;this.save();}
 }

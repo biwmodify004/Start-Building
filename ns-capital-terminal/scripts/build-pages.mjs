@@ -1,0 +1,14 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {validatePagesArtifact} from './validate-pages.mjs';
+const config=JSON.parse(await readFile(new URL('../deployment/github-pages.json',import.meta.url),'utf8'));
+const raw=process.env.NS_BASE_PATH||config.basePath;
+if(!/^\/(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]*$/.test(raw)||raw.split('/').some(p=>p==='.'||p==='..'))throw new Error('Invalid Pages base path');
+const basePath=raw==='/'?'/':raw.replace(/\/$/,'')+'/';
+await import('./build.mjs');
+const out=resolve('dist');
+await writeFile(resolve(out,'.nojekyll'),'');
+await writeFile(resolve(out,'deployment.json'),JSON.stringify({provider:'github-pages',version:'1.9.0',basePath,commit:process.env.GITHUB_SHA||null,frontendAccess:'public',brokerAuthentication:'backend-verified Google session or Bridge token; separate Trade token for execution'},null,2)+'\n');
+await writeFile(resolve(out,'404.html'),'<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ไม่พบหน้า · NS Capital</title><body style="background:#131722;color:#ddd;font-family:Tahoma;padding:40px"><h1>ไม่พบหน้าที่ต้องการ</h1><a style="color:#8eafff" href="'+basePath+'">กลับ NS Capital Terminal</a></body></html>');
+await validatePagesArtifact(out,basePath);
+console.log('GitHub Pages artifact ready at '+basePath);

@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {JSDOM} from 'jsdom';
+import {setupGoogleLogin} from '../src/google-auth.mjs';
+import {bridgeURL} from '../src/broker.mjs';
+const html=await readFile(new URL('../src/index.html',import.meta.url),'utf8');
+const tick=()=>new Promise(r=>setImmediate(r));
+const wait=async fn=>{for(let i=0;i<100;i++){if(fn())return;await tick();}throw new Error('Google login fixture timed out');};
+function fixture(){
+ const dom=new JSDOM(html,{url:'https://fixture.site/Start-Building/',pretendToBeVisual:true}),win=dom.window,doc=win.document,$=id=>doc.getElementById(id),calls=[],connectionsLog=[];
+ win.HTMLDialogElement.prototype.showModal=function(){this.open=true;};win.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new win.Event('close'));};
+ const broker={url:'',token:'',generation:1,connection:null};let options,logout=0,pending=false,release,pendingConnect=false,releaseConnect;
+ const sdk={initialize(value){options=value;},renderButton(el){el.textContent='Official Google SDK fixture button';},disableAutoSelect(){}};
+ const connections={async connectWithGoogle(data){connectionsLog.push(data);if(pendingConnect){pendingConnect=false;await new Promise(r=>releaseConnect=r);}broker.url=data.url;broker.token=data.token;broker.generation++;broker.connection={account:{id:'123'}};}};
+ const fetchImpl=async(raw,init={})=>{const path=new URL(raw).pathname,body=init.body?JSON.parse(init.body):null;calls.push({path,body,headers:init.headers});let data;
+  if(path==='/v1/auth/config')data={enabled:true,clientId:'123-fixture.apps.googleusercontent.com'};
+  else if(path==='/v1/auth/challenge')data={challengeId:'fixture-challenge',nonce:'fixture-server-nonce'};
+  else if(path==='/v1/auth/google'){if(pending){pending=false;await new Promise(r=>release=r);}data={token:'g'.repeat(43),accountKey:'Fixture|123',expiresAt:Date.now()+1800000,user:{provider:'google',name:'<script>Fixture user</script>',email:'owner.fixture@gmail.com'}};}
+  else if(path==='/v1/auth/logout')data={ok:true};else throw new Error('Unexpected fixture path '+path);
+  return{ok:true,json:async()=>data};
+ };
+ const ui=setupGoogleLogin({broker,connections,doc,win,fetchImpl,loadSDK:async()=>sdk,onLocalLogout(){logout++;broker.token='';broker.connection=null;broker.generation++;}});ui.open();
+ return{dom,win,doc,$,ui,broker,calls,connectionsLog,options:()=>options,logout:()=>logout,defer(){pending=true;},release:()=>release?.(),deferConnect(){pendingConnect=true;},releaseConnect:()=>releaseConnect?.(),destroy(){release?.();releaseConnect?.();ui.destroy();win.close();}};
+}
+test('Google button is initialized with a backend nonce and does not sign in or execute automatically',async()=>{const f=fixture();try{f.$('google-auth-prepare').click();await wait(()=>f.options());assert.equal(f.options().nonce,'fixture-server-nonce');assert.equal(f.options().auto_select,false);assert.equal(f.connectionsLog.length,0);assert.ok(!f.calls.some(c=>c.path.includes('/auth/google')||c.path.includes('/execute')));assert.equal(f.win.localStorage.length,0);}finally{f.destroy();}});
+test('only a backend-verified Google session connects to the exact broker account',async()=>{const f=fixture();try{f.$('google-auth-prepare').click();await wait(()=>f.options());f.options().callback({credential:'fixture-id-token'});await wait(()=>f.connectionsLog.length===1&&!f.$('google-auth-dialog').open);const c=f.connectionsLog[0];assert.equal(c.accountKey,'Fixture|123');assert.equal(c.token,'g'.repeat(43));assert.match(f.$('member-google-user').textContent,/<script>Fixture/);assert.equal(f.$('member-google-user').querySelector('script'),null);assert.equal(f.win.localStorage.length,0);const exchange=f.calls.find(c=>c.path==='/v1/auth/google');assert.equal(exchange.body.challengeId,'fixture-challenge');assert.ok(!f.calls.some(c=>c.path.includes('/execute')));await f.ui.signOut();assert.equal(f.logout(),1);assert.equal(f.broker.token,'');assert.ok(f.calls.some(c=>c.path==='/v1/auth/logout'&&c.headers.Authorization==='Bearer '+'g'.repeat(43)));}finally{f.destroy();}});
+test('changing backend while Google verification is pending never connects the old session',async()=>{const f=fixture();try{f.$('google-auth-prepare').click();await wait(()=>f.options());f.defer();f.options().callback({credential:'fixture-id-token'});await wait(()=>f.calls.some(c=>c.path==='/v1/auth/google'));f.$('google-auth-url').value='https://different.fixture';f.$('google-auth-url').dispatchEvent(new f.win.Event('input'));f.release();await wait(()=>f.calls.some(c=>c.path==='/v1/auth/logout'));assert.equal(f.connectionsLog.length,0);}finally{f.destroy();}});
+test('closing the Google dialog invalidates its callback and leaves credentials unissued',async()=>{const f=fixture();try{f.$('google-auth-prepare').click();await wait(()=>f.options());f.$('google-auth-dialog').close();f.options().callback({credential:'fixture-id-token'});await tick();assert.ok(!f.calls.some(c=>c.path==='/v1/auth/google'));assert.equal(f.connectionsLog.length,0);}finally{f.destroy();}});
+test('closing or signing out during broker connection clears and revokes a late Google session',async()=>{for(const action of ['close','signOut']){const f=fixture();try{f.$('google-auth-prepare').click();await wait(()=>f.options());f.deferConnect();f.options().callback({credential:'fixture-id-token'});await wait(()=>f.connectionsLog.length===1);if(action==='close')f.$('google-auth-dialog').close();else await f.ui.signOut();f.releaseConnect();await wait(()=>f.calls.some(c=>c.path==='/v1/auth/logout'));assert.equal(f.broker.token,'');assert.equal(f.broker.connection,null);assert.ok(f.logout()>=1);assert.doesNotMatch(f.$('member-google-user').textContent,/owner\.fixture@gmail\.com/);}finally{f.destroy();}}});
+test('MCP endpoint mistakes are explained before a connection or Google request is attempted',async()=>{assert.throws(()=>bridgeURL('http://127.0.0.1:22346/mcp'),/ไม่ใส่ \/mcp/);const f=fixture();try{f.$('google-auth-url').value='http://127.0.0.1:22346/mcp';f.$('google-auth-prepare').click();await wait(()=>f.$('google-auth-error').textContent.includes('ไม่ใส่ /mcp'));assert.equal(f.calls.length,0);}finally{f.destroy();}});

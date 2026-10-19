@@ -1,6 +1,6 @@
 # Security boundaries
 
-NS Capital is a personal trading workspace. Sites owns website authentication and audience access. Bridge tokens authorize a particular gateway; they are not multi-tenant website sessions. Keep one private gateway per account execution path. Browser code must never receive broker passwords, model API keys or MT4 publisher secrets.
+NS Capital is a personal trading workspace. GitHub Pages exposes only the frontend. Google ID tokens are verified server-side with Google Auth, including nonce, issuer, audience, expiry and an explicit owner allowlist. Short-lived hashed sessions are bound to terminal identity and browser origin; they never grant Trade or Publisher permission. Bridge tokens authorize a particular gateway; they are not multi-tenant website sessions. Keep one private gateway per account execution path. Browser code must never receive broker passwords, model API keys or MT4 publisher secrets. Google credentials and session secrets are not persisted; Google sub is the stable identity. Non-Google-hosted email requires an explicit sub allowlist. Public HTML is not an access-control boundary.
 
 Bridge, Trade and MT4 Publish tokens are distinct. Web tokens remain in memory, not exports or local storage. Read-only track-record capabilities disclose a redacted immutable snapshot, require explicit creation consent, expire, and can be revoked. They do not independently verify a broker's records.
 

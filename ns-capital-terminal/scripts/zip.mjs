@@ -5,7 +5,7 @@ const crcTable=Array.from({length:256},(_,n)=>{let c=n;for(let j=0;j<8;j++)c=c&1
 const crc32=bytes=>{let c=0xffffffff;for(const b of bytes)c=crcTable[(c^b)&255]^(c>>>8);return(c^0xffffffff)>>>0;};
 export async function zipFolder(directory,target,extraFiles=[]){
  const local=[],central=[];let offset=0,count=0,centralSize=0;
- const files=(await readdir(directory,{withFileTypes:true})).filter(e=>e.isFile()&&/\.(?:py|mq4|md|json)$/.test(e.name)&&!e.name.startsWith('.')).map(e=>({name:e.name,path:join(directory,e.name)})).concat(extraFiles).sort((a,b)=>a.name.localeCompare(b.name));
+ const files=(await readdir(directory,{withFileTypes:true})).filter(e=>e.isFile()&&(/\.(?:py|mq4|md|json)$/.test(e.name)||e.name==='requirements-google.txt')&&!e.name.startsWith('.')).map(e=>({name:e.name,path:join(directory,e.name)})).concat(extraFiles).sort((a,b)=>a.name.localeCompare(b.name));
  for(const file of files){
   if(!/^[A-Za-z0-9_.-]+$/.test(file.name)||file.name.startsWith('.'))throw new Error('Unsafe download filename');
   const data=await readFile(file.path),name=Buffer.from(file.name),crc=crc32(data);

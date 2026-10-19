@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.9.0
+
+- Migrates primary frontend deployment to GitHub Pages/Actions with project-path PWA, links and report URLs.
+- Adds Google Identity Services login with backend Google Auth verification, single-use nonce, explicit owner allowlist, expiring origin/account-bound sessions and sign-out revocation. Broker execution keeps its separate Trade token and risk checks.
+- Explains MCP endpoint mistakes and failed localhost/HTTPS/CORS connections; updates the complete Thai manual for Google OAuth and Pages.
+- Retains the old private Sites deployment unchanged. Google Client ID/allowlist and Windows runtime configuration remain owner setup steps.
+
 ## 1.8.0
 
 - Persistent, per-terminal-account SQLite ledger; actual MT5 deals and batched MT4 history, commission/swap/fee reconciliation and backend notes.

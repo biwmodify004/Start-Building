@@ -14,6 +14,7 @@ export function pauseBrokerSnapshot(raw,imports={}){
 export function bridgeURL(value){
  const url=new URL(String(value).trim());
  if(url.username||url.password||url.search||url.hash)throw new Error('Use a bridge URL without credentials, query or fragment');
+ if(/\/mcp\/?$/.test(url.pathname))throw new Error('ใช้ URL หลักของ NS Broker Bridge เช่น http://127.0.0.1:8787 ไม่ใส่ /mcp · Use the bridge base URL, not the MCP endpoint');
  const loopback=['localhost','127.0.0.1','[::1]'].includes(url.hostname);
  if(url.protocol!=='https:'&&!(url.protocol==='http:'&&loopback))throw new Error('Use HTTPS for a VPS, or HTTP on localhost only');
  return url.href.replace(/\/$/,'');
@@ -30,7 +31,7 @@ export class BrokerMarketProvider{
  async request(path,params={},signal){
   if(!this.url||!this.token)throw new Error('Connect your broker bridge first');
   if(this.accountIdentity&&['/v1/bars','/v1/quote'].includes(path))params={...params,accountKey:this.accountIdentity};const url=new URL(this.url+path);for(const [k,v]of Object.entries(params))if(v!=null)url.searchParams.set(k,String(v));
-  const response=await this.fetchImpl(url.href,{headers:{Authorization:'Bearer '+this.token},credentials:'omit',cache:'no-store',redirect:'error',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000)});
+  let response;try{response=await this.fetchImpl(url.href,{headers:{Authorization:'Bearer '+this.token},credentials:'omit',cache:'no-store',redirect:'error',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000)});}catch(error){if(error.name==='AbortError'||error.name==='TimeoutError')throw error;throw new Error('เชื่อม Bridge ไม่ได้: ตรวจว่า bridge.py เปิดอยู่, URL/Port ตรงกัน, NS_ALLOWED_ORIGINS ถูกต้อง และ Browser อนุญาต Local network · มือถือใช้ localhost ของ PC ไม่ได้');}
   let data;try{data=await response.json();}catch{throw new Error('Bridge returned an invalid response');}
   if(!response.ok)throw new Error(data.error||'Broker bridge HTTP '+response.status);return data;
  }

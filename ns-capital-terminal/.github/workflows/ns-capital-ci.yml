@@ -1,10 +1,10 @@
 name: NS Capital checks
 on:
   pull_request:
-    paths: ['ns-capital-terminal/**', '.github/workflows/ns-capital-ci.yml']
+    paths: ['ns-capital-terminal/**', '.github/workflows/ns-capital-ci.yml', '.github/workflows/ns-capital-pages.yml']
   push:
-    branches: [main, codex/ns-capital-terminal]
-    paths: ['ns-capital-terminal/**', '.github/workflows/ns-capital-ci.yml']
+    branches: [main]
+    paths: ['ns-capital-terminal/**', '.github/workflows/ns-capital-ci.yml', '.github/workflows/ns-capital-pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -47,4 +47,4 @@ jobs:
         run: python -W error::ResourceWarning -m unittest discover -s tests -p 'test_*.py' -q
       - name: Build website, Thai manual and bridge download
         working-directory: ${{ steps.project.outputs.directory }}
-        run: npm run build
+        run: npm run build:pages

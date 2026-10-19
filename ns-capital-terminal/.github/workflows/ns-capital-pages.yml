@@ -1,0 +1,69 @@
+name: Deploy NS Capital to GitHub Pages
+on:
+  push:
+    branches: [main]
+    paths: ['ns-capital-terminal/**', '.github/workflows/ns-capital-pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ns-capital-github-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Locate project
+        id: project
+        shell: bash
+        run: |
+          if [ -f ns-capital-terminal/package.json ]; then
+            echo 'directory=ns-capital-terminal' >> "$GITHUB_OUTPUT"
+          else
+            echo 'directory=.' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ${{ steps.project.outputs.directory }}/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install locked dependencies
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: npm ci --no-audit --no-fund
+      - name: Test frontend, account isolation and PWA
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: npm test
+      - name: Test broker ledger, analytics and risk
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: npm run test:python
+      - name: Build GitHub Pages website
+        working-directory: ${{ steps.project.outputs.directory }}
+        env:
+          NS_BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build:pages
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ steps.project.outputs.directory }}/dist
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Read Pages configuration
+        uses: actions/configure-pages@v5
+      - name: Deploy tested artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
