@@ -4,17 +4,25 @@ import os
 import re
 import time
 from urllib.parse import urlsplit
+from urllib.error import HTTPError
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from trading import bound, command_input, validate_spec
 
 class NoRedirect(HTTPRedirectHandler):
-    def redirect_request(self, *args, **kwargs):
+    def redirect_request(self, req, fp, *args, **kwargs):
+        fp.close()
         raise ValueError('AI redirects are disabled')
 
 class AITradeAdvisor:
-    def __init__(self, source, trading, base=None, model=None, api_key=None, completion=None):
+    PROVIDERS = {'ollama':('Ollama','http://127.0.0.1:11434/v1'), 'lm-studio':('LM Studio','http://127.0.0.1:1234/v1'), 'openai-compatible':('OpenAI-compatible','')}
+
+    def __init__(self, source, trading, base=None, model=None, api_key=None, completion=None, provider=None):
         self.source, self.trading = source, trading
-        self.base = (base if base is not None else os.getenv('NS_AI_BASE_URL', '')).rstrip('/')
+        self.provider = (provider if provider is not None else os.getenv('NS_AI_PROVIDER', 'openai-compatible')).strip().lower()
+        if self.provider not in self.PROVIDERS:
+            raise ValueError('NS_AI_PROVIDER must be ollama, lm-studio or openai-compatible')
+        self.label, default_base = self.PROVIDERS[self.provider]
+        self.base = (base if base is not None else os.getenv('NS_AI_BASE_URL', '') or default_base).rstrip('/')
         self.model = model if model is not None else os.getenv('NS_AI_MODEL', '')
         self.api_key = api_key if api_key is not None else os.getenv('NS_AI_API_KEY', '')
         self.completion = completion or self.call_model
@@ -24,25 +32,55 @@ class AITradeAdvisor:
                 raise ValueError('AI base URL requires HTTPS or localhost HTTP without embedded credentials')
 
     def status(self):
-        return {'configured':bool(self.base and self.model), 'model':self.model, 'mode':'drafts', 'autoExecution':False}
+        return {'configured':bool(self.base and self.model), 'provider':self.provider, 'providerLabel':self.label, 'model':self.model, 'checked':False, 'mode':'drafts', 'autoExecution':False}
 
-    def call_model(self, payload):
+    def check(self):
+        result = {**self.status(), 'checked':True, 'checkedAt':int(time.time()*1000), 'reachable':False, 'modelAvailable':False}
+        if not result['configured']:
+            return {**result, 'error':'Configure NS_AI_PROVIDER and NS_AI_MODEL on the bridge computer; custom APIs also need NS_AI_BASE_URL'}
+        try:
+            data = self.request_json('/models', timeout=8)
+            models = data.get('data')
+            if not isinstance(models,list) or any(not isinstance(m,dict) or not isinstance(m.get('id'),str) for m in models):
+                raise ValueError('Invalid models response')
+            result.update(reachable=True,modelAvailable=any(m['id']==self.model for m in models))
+            if not result['modelAvailable']:
+                result['error'] = 'The exact configured model is not listed. Check ollama list or the model ID in your AI server'
+            return result
+        except Exception:
+            return {**result, 'error':'AI server check failed. Check the running server, /v1 base URL and server-side credentials'}
+
+    def request_json(self, path, payload=None, timeout=55):
         headers = {'Content-Type':'application/json'}
         if self.api_key:
             headers['Authorization'] = 'Bearer ' + self.api_key
-        request = Request(self.base+'/chat/completions', data=json.dumps(payload,allow_nan=False).encode(), headers=headers, method='POST')
+        request = Request(self.base+path, data=None if payload is None else json.dumps(payload,allow_nan=False).encode(), headers=headers, method='GET' if payload is None else 'POST')
         try:
-            with build_opener(NoRedirect).open(request, timeout=55) as response:
-                data = response.read(262145)
-                if len(data)>262144:
-                    raise ValueError('AI response too large')
-                return json.loads(data)['choices'][0]['message']['content']
+            response = build_opener(NoRedirect).open(request, timeout=timeout)
+        except HTTPError as error:
+            error.close()
+            raise RuntimeError('AI endpoint returned an HTTP error') from None
+        with response:
+            data = response.read(262145)
+            if len(data)>262144:
+                raise ValueError('AI response too large')
+            result = json.loads(data)
+            if not isinstance(result,dict):
+                raise ValueError('Invalid AI server response')
+            return result
+
+    def call_model(self, payload):
+        payload = {**payload, 'stream':False}
+        if self.provider == 'ollama':
+            payload['response_format'] = {'type':'json_object'}
+        try:
+            return self.request_json('/chat/completions',payload)['choices'][0]['message']['content']
         except Exception:
             raise RuntimeError('AI request failed. Check model, local server and server-side API configuration') from None
 
     def propose(self, raw):
         if not self.status()['configured']:
-            raise ValueError('Configure NS_AI_BASE_URL and NS_AI_MODEL on the bridge computer first')
+            raise ValueError('Configure NS_AI_PROVIDER and NS_AI_MODEL on the bridge computer; custom APIs also need NS_AI_BASE_URL')
         expected, symbol, frame = raw.get('accountKey'), raw.get('symbol'), raw.get('timeframe','15')
         prompt = raw.get('prompt','')
         if not isinstance(prompt,str) or not 1<=len(prompt.strip())<=2000 or frame not in ('1','5','15','30','60','240','D','W'):
@@ -77,4 +115,4 @@ class AITradeAdvisor:
             result={k:result[k] for k in ('action','symbol','side','volume','sl','tp')}
             result['reason']=reason
         bound(self.source,expected)
-        return {'accountKey':expected,'symbol':symbol,'model':self.model,'proposal':result,'createdAt':int(time.time()*1000),'autoExecution':False}
+        return {'accountKey':expected,'symbol':symbol,'provider':self.provider,'providerLabel':self.label,'model':self.model,'proposal':result,'createdAt':int(time.time()*1000),'autoExecution':False}

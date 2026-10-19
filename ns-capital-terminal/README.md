@@ -64,6 +64,16 @@ Use **Reconnect** to refresh chart history and resubscribe while retaining works
 
 REST history and a real WebSocket candle were received successfully from this execution environment. The Binance catalog and live adapter are covered by unit and simulated-DOM tests, additionally covering the full dynamic catalog, quote filtering, pagination, Unicode pairs, non-USDT quote units, small-price precision, reconnect, pair switching, stale stream detection, polling fallback and unsubscribe cleanup. This does not verify the user's browser/network or real browser rendering.
 
+## Ollama and provider connection checks (1.7)
+
+The Broker AI adapter explicitly supports `NS_AI_PROVIDER=ollama`, `lm-studio` and `openai-compatible`. Ollama defaults to `http://127.0.0.1:11434/v1`; LM Studio defaults to port 1234. Set the exact `NS_AI_MODEL` on the bridge computer and restart it. Existing BASE_URL/MODEL configurations continue to work. Model credentials remain server-side. The website never chooses or installs a model automatically.
+
+In Trade, **Connect Ollama / LM Studio** opens setup instructions. **Check AI** performs an authenticated bridge GET with `check=1`; the bridge probes the configured server's `/models` endpoint and distinguishes configuration, reachability and exact model availability. Listing a model is not an inference test. Ollama completions request JSON mode and disable streaming before the existing draft validation and explicit broker confirmation flow. Other compatible services need to support the relevant endpoints; a models-list failure does not by itself prove their chat endpoint is unavailable.
+
+The optional local Research adapter also accepts `AI_PROVIDER=ollama` with `AI_MODEL` and defaults to port 11434. These `AI_*` settings belong to the Node local server; `NS_AI_*` settings belong to Python Broker Bridge. They are separate processes. Published static hosting does not run either local model server. See [broker-bridge/README-TH.md](broker-bridge/README-TH.md) and [AI-BACKEND-TH.md](AI-BACKEND-TH.md) for setup and the prioritized Data, Auto Journal, Risk, Backtesting and AI training roadmap. Roadmap items are proposals, not completed modules.
+
+Verification includes real loopback HTTP fixtures for model probes and completions, JSON-mode payloads, legacy/default provider behavior, missing models, invalid responses, redirects, credential scrubbing and website setup/status controls. No Ollama model was downloaded or run in this environment, and real model quality/latency remains unverified.
+
 ## Installable web app and AI backend plan (1.6)
 
 The app now includes a PWA manifest, original launcher and maskable icons, an installation dialog and a service worker. Open **More → Install app** on compact layouts, or the install icon in the desktop header. The browser offers installation where supported; Safari users can use Share → Add to Home Screen. When opened inside ChatGPT, open the site URL in Chrome, Edge or Safari first.
@@ -84,7 +94,7 @@ Each mutation is prepared and reviewed before submission. The bridge checks acco
 
 MT4 commands are delivered once to the EA, expire before execution, are checked against the terminal account and current price, and return receipts. The EA re-posts an unacknowledged receipt rather than re-executing the command. No pending Limit/Stop entry orders, bulk closes, withdrawals, account mirroring or automatic AI execution are included.
 
-The Trade panel also connects to a configured **LM Studio / OpenAI-compatible model** through the gateway. Set `NS_AI_BASE_URL`, `NS_AI_MODEL` and, if required, `NS_AI_API_KEY` on the gateway computer. Secrets stay on that computer. The model receives the selected symbol's quote, contract specifications, recent broker candles, relevant positions and financial account context; account login/server and tokens are excluded from the model payload. Remote model providers receive that context when chosen. AI can return a validated draft or pass. The user reviews the draft and explicitly confirms through the same broker preflight flow; model text never calls an execution function.
+The Trade panel also connects to a configured **Ollama / LM Studio / OpenAI-compatible model** through the gateway. Set `NS_AI_BASE_URL`, `NS_AI_MODEL` and, if required, `NS_AI_API_KEY` on the gateway computer. Secrets stay on that computer. The model receives the selected symbol's quote, contract specifications, recent broker candles, relevant positions and financial account context; account login/server and tokens are excluded from the model payload. Remote model providers receive that context when chosen. AI can return a validated draft or pass. The user reviews the draft and explicitly confirms through the same broker preflight flow; model text never calls an execution function.
 
 MCP exposes six tools: connection status, symbol catalog, quote, candles, `get_trading_state` and `suggest_trade`. The last tool uses the configured model and returns a draft only. No MCP tool sends, closes or modifies orders. Local stdio and HTTP share these tools; remote MCP clients still need the user's reachable HTTPS endpoint and compatible authentication.
 
@@ -129,7 +139,7 @@ Choose **Broker / MCP** to connect the included `broker-bridge/` kit. Build outp
 
 The same gateway exposes six **MCP tools without order execution**: `get_connection_status`, `list_symbols`, `get_quote`, `get_candles`, `get_trading_state`, `suggest_trade`. It supports both local stdio (`mcp_server.py`, newline-delimited JSON-RPC) and stateless Streamable HTTP JSON responses at `/mcp`, protected by the same Bearer token and Host/Origin checks. HTTP GET returns 405 because no SSE stream is offered. Example configs and the Thai guide explain clients supporting token-authenticated HTTP and VPS HTTPS. Connecting ChatGPT remote MCP additionally requires a reachable user-owned HTTPS endpoint, supported authentication (OAuth where required), and connection registration. Those user-side steps are not installed automatically. No MCP execution or withdrawal tools are exposed. Manual HTTP execution routes require an enabled gateway and the separate Trade token.
 
-Verified: **51 JavaScript tests and 24 Python tests**, including real Vela in a simulated DOM, exact-suffix selection, non-USD currency metadata, dynamic quote freshness, disconnect/cleanup, missing credentials on restore, widget structure/attribution, actual local HTTP auth/CORS/Host checks, MT4 request/response fixtures, MT5 UTC fixtures and full stdio/HTTP MCP initialize/list/call exchanges. The downloadable ZIP passes a standard ZIP integrity check. Fixtures are explicitly labeled and are not real broker quotes. **No actual Axi account, MT4 compiler or real browser rendering was available for end-to-end verification.**
+Verified: **56 JavaScript tests and 30 Python tests**, including real Vela in a simulated DOM, exact-suffix selection, non-USD currency metadata, dynamic quote freshness, disconnect/cleanup, missing credentials on restore, widget structure/attribution, actual local HTTP auth/CORS/Host checks, MT4 request/response fixtures, MT5 UTC fixtures and full stdio/HTTP MCP initialize/list/call exchanges. The downloadable ZIP passes a standard ZIP integrity check. Fixtures are explicitly labeled and are not real broker quotes. **No actual Axi account, MT4 compiler or real browser rendering was available for end-to-end verification.**
 
 Setup: [broker-bridge/README-TH.md](broker-bridge/README-TH.md).
 
@@ -147,7 +157,7 @@ Primary references:
 
 The published static app uses **local rules only**. Quant AI, paid LuxAlgo indicators and LuxAlgo's proprietary services are not included.
 
-An optional local server adapter is supplied for an OpenAI-compatible provider such as a locally running LM Studio server. Configure environment variables in your shell (do not commit keys):
+An optional local server adapter supports Ollama, LM Studio and other OpenAI-compatible providers. For Ollama, set `AI_PROVIDER=ollama AI_MODEL=YOUR_EXACT_MODEL_ID` before `npm start`; a custom `AI_BASE_URL` overrides the default. For LM Studio, the existing explicit base URL also works: Configure environment variables in your shell (do not commit keys):
 
 ```sh
 AI_BASE_URL=http://127.0.0.1:1234/v1 AI_MODEL=your-loaded-model npm start

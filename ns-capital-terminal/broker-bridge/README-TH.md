@@ -106,17 +106,45 @@ MT5 ใช้การจับคู่แบบบัญชีจริงข�
 
 ## เชื่อม Local AI / API และ MCP
 
+### Ollama
+
+1. ติดตั้ง Ollama จาก https://ollama.com/download และเปิดเซิร์ฟเวอร์บนเครื่องเดียวกับ Bridge
+2. ดาวน์โหลดโมเดลที่ต้องการด้วย `ollama pull <ชื่อโมเดล>` แล้วใช้ชื่อเต็มที่ `ollama list` แสดง ไม่เดาชื่อหรือเลือกโมเดลให้อัตโนมัติ
+3. ตั้ง PowerShell ก่อนเริ่ม Bridge ตัวอย่างเริ่มในโหมดดูข้อมูล:
+
+```powershell
+$env:NS_AI_PROVIDER = "ollama"
+$env:NS_AI_BASE_URL = "http://127.0.0.1:11434/v1"
+$env:NS_AI_MODEL = "YOUR_MODEL_ID_FROM_OLLAMA_LIST"
+py bridge.py --mode mt5
+```
+
+ค่าเริ่มต้นของ provider `ollama` คือ `http://127.0.0.1:11434/v1` ถ้าไม่ได้ตั้ง NS_AI_BASE_URL การเรียก Local Ollama ปกติไม่ต้องมี API key ถ้าเคยตั้ง NS_AI_API_KEY ของผู้ให้บริการอื่น ให้ลบด้วย `Remove-Item Env:NS_AI_API_KEY -ErrorAction SilentlyContinue` ในหน้าต่าง PowerShell นี้ก่อนรัน เมื่อใช้ API/proxy ที่ต้องยืนยันตัวตน ให้ตั้ง key ของปลายทางนั้นบนเครื่อง Bridge เท่านั้น
+
+หากต้องการซื้อขายด้วยตนเอง ให้ใช้ `--enable-trading` และตั้ง Trade token/สิทธิ์ Terminal ตามหัวข้อซื้อขายด้านบน การเพิ่ม provider ไม่เปิดสิทธิ์ซื้อขายให้เอง MT4 ใช้ `--mode mt4` กับ EA ที่ตั้งไว้ตามคู่มือ
+
+### LM Studio
+
 เปิดเซิร์ฟเวอร์ LM Studio พร้อมโมเดลที่เลือก แล้วตั้งค่าบนเครื่อง Bridge ก่อนเริ่ม Python ตัวอย่าง PowerShell:
 
 ```powershell
+$env:NS_AI_PROVIDER = "lm-studio"
 $env:NS_AI_BASE_URL = "http://127.0.0.1:1234/v1"
 $env:NS_AI_MODEL = "YOUR_LOADED_MODEL_ID"
 py bridge.py --mode mt5 --enable-trading
 ```
 
-API ที่รองรับรูปแบบ OpenAI-compatible ใช้ HTTPS base URL และตั้ง `NS_AI_API_KEY` บนเครื่อง Bridge ตามบริการนั้น เว็บไม่รับหรือเก็บ API key ของโมเดล เมื่อเลือกผู้ให้บริการบนคลาวด์ ข้อมูลราคา สัญญา ยอดเงิน และสถานะที่เกี่ยวข้องจะถูกส่งไปยังผู้ให้บริการนั้น โดยไม่ส่งเลขล็อกอิน เซิร์ฟเวอร์บัญชี หรือ token ของ gateway
+สำหรับผู้ให้บริการอื่น ตั้ง `NS_AI_PROVIDER=openai-compatible` API ที่รองรับรูปแบบ OpenAI-compatible ใช้ HTTPS base URL และตั้ง `NS_AI_API_KEY` บนเครื่อง Bridge ตามบริการนั้น เว็บไม่รับหรือเก็บ API key ของโมเดล เมื่อเลือกผู้ให้บริการบนคลาวด์ ข้อมูลราคา สัญญา ยอดเงิน และสถานะที่เกี่ยวข้องจะถูกส่งไปยังผู้ให้บริการนั้น โดยไม่ส่งเลขล็อกอิน เซิร์ฟเวอร์บัญชี หรือ token ของ gateway
 
-ในแท็บซื้อขาย กด **AI / MCP** เพื่อตรวจการตั้งค่า ใส่โจทย์แล้วกด Analyze AI จะอ่าน quote, สเปกสัญญา, แท่งล่าสุดไม่เกิน 120 แท่ง และสถานะของสินทรัพย์ในบัญชีที่เลือก ตอบเป็นข้อเสนอหรือไม่เทรด ถ้าต้องการใช้ข้อเสนอให้กด Review draft แล้วตรวจและยืนยันด้วยตนเอง **AI ไม่ส่งคำสั่งอัตโนมัติ**
+### ตรวจว่าเชื่อมต่อสำเร็จหรือไม่
+
+ในแท็บซื้อขาย กด **วิธีเชื่อม Ollama / LM Studio** เพื่ออ่านคู่มือในเว็บ และ **ตรวจ AI** เพื่อให้ Bridge เรียก `/v1/models` ตรวจการเข้าถึงเซิร์ฟเวอร์กับชื่อโมเดลที่ตั้งไว้จริง สถานะแยกเป็นยังไม่ตั้งค่า / ติดต่อเซิร์ฟเวอร์ไม่ได้ / ไม่พบโมเดล / พบโมเดล การพบชื่อโมเดลยังไม่ยืนยันว่ารัน inference สำเร็จ ปุ่มตรวจนี้ไม่สร้างข้อเสนอหรือคำสั่งซื้อขาย บริการที่ไม่รองรับ `/models` อาจตรวจรายชื่อไม่ผ่าน แม้จะมี chat endpoint; ตรวจคู่มือบริการและทดสอบ Analyze แยกต่างหาก
+
+Bridge ใช้ OpenAI-compatible `/v1/chat/completions` แบบไม่สตรีม สำหรับ Ollama จะขอ JSON mode แล้วตรวจ schema, symbol, volume, SL/TP ซ้ำที่ Bridge หากโมเดลตอบไม่ตรงจะคืนข้อผิดพลาด ไม่แปลงเป็นคำสั่งจริง ไม่ดาวน์โหลดโมเดล ไม่เปลี่ยนโมเดล และไม่เทรนให้อัตโนมัติ Local Ollama/LM Studio ต้องรันค้างบนเครื่อง Bridge มือถือ/PWA ติดต่อ Bridge ผ่าน URL ของคุณ ไม่เรียก localhost ของคอมโดยตรง ไม่มีการเปิดพอร์ต Ollama สู่สาธารณะโดยอัตโนมัติ
+
+หลังเชื่อมต่อแล้ว ใส่โจทย์แล้วกด Analyze AI จะอ่าน quote, สเปกสัญญา, แท่งล่าสุดไม่เกิน 120 แท่ง และสถานะของสินทรัพย์ในบัญชีที่เลือก ตอบเป็นข้อเสนอหรือไม่เทรด ถ้าต้องการใช้ข้อเสนอให้กด Review draft แล้วตรวจและยืนยันด้วยตนเอง **AI ไม่ส่งคำสั่งอัตโนมัติ**
+
+หากโมเดลช้าหรือหมดเวลา ให้ตรวจทรัพยากร/ความยาว context และทดสอบโมเดลที่เล็กลง การทดสอบในโครงการใช้ HTTP/model fixtures ยังไม่ได้ดาวน์โหลดหรือรัน Ollama จริงบนเครื่องของคุณ
 
 MCP ใช้ได้กับ AI client ที่รองรับ โดยเพิ่ม `get_trading_state` เพื่ออ่านบัญชีและสถานะจริง และ `suggest_trade` เพื่อขอข้อเสนอจากโมเดลที่ตั้งไว้ เครื่องมือ MCP ไม่มีคำสั่งเปิด/ปิด/แก้ไขออเดอร์จริง
 
@@ -169,3 +197,6 @@ MCP ใช้ได้กับ AI client ที่รองรับ โดย�
 - MT5 order_send: https://www.mql5.com/en/docs/python_metatrader5/mt5ordersend_py
 - MT4 OrderSend: https://docs.mql4.com/trading/ordersend
 - MCP transport: https://modelcontextprotocol.io/specification/2025-11-25/basic/transports
+
+
+เอกสาร Ollama หลัก: https://docs.ollama.com/api/openai-compatibility และ https://docs.ollama.com/capabilities/structured-outputs

@@ -350,7 +350,7 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
                 if url.path == "/v1/status":
                     return self.reply(200, status_response())
                 if url.path == "/v1/ai/status":
-                    return self.reply(200, advisor.status())
+                    return self.reply(200, advisor.check() if query.get("check")=="1" else advisor.status())
                 if url.path == "/v1/trading/state":
                     return self.reply(200, trading.state(query.get("accountKey")))
                 if url.path == "/v1/trading/receipt":
