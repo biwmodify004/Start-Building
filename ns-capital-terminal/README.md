@@ -34,13 +34,19 @@ CSV imports require a header and positive OHLC prices. Supported delimiters: com
 
 Backtests use loaded chart history, or the revealed prefix during Replay. Current forming Binance bars are excluded. The available history is not an entire exchange archive. Size is in asset units, and capital/P&L use the symbol's quote currency. Backtests model no margin, leverage, funding, swap, spread other than the chosen slippage, volume constraints or liquidation. There can be at most one strategy position. A surviving position is closed at the final bar. Drawdown is sampled at bar closes, so intrabar drawdown can be larger. Limited sample results are not evidence of an investment edge.
 
-Paper orders use asset units, not CFD lots. Accounts are separate by quote currency: USD, USDT, JPY. Fills use visible chart prices with configurable commission but no paper slippage or margin modeling. Stop/target exits require this page to receive new bars on the same symbol/timeframe and Replay mode. Alerts run only while the page is open; no background service or broker orders are installed.
+Paper orders use asset units, not CFD lots. Accounts are separate by the actual quote currency, including USD, USDT, BTC, ETH, THB and other catalog quotes. Fills use visible chart prices with configurable commission but no paper slippage or margin modeling. Stop/target exits require this page to receive new bars on the same symbol/timeframe and Replay mode. Alerts run only while the page is open; no background service or broker orders are installed.
 
 User notes, positions, alerts, imported bars and chart layouts remain in this browser's localStorage. They do not sync between devices or users. Use Backup to export a JSON archive. Clearing browser storage removes local records. No user records or API credentials are committed to GitHub.
 
 ## Binance Spot live prices
 
-Choose **Binance · Crypto** above the chart, then choose BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT, DOGEUSDT or ADAUSDT from the pair selector. The native symbol picker also lists these pairs. A direct link can select the source: `/?source=binance&symbol=BTCUSDT`.
+Choose **Binance · Crypto** above the chart. The pair selector and Vela's native symbol picker load **all currently trading Spot pairs** from Binance `exchangeInfo`, including every quote currency returned by the exchange. No fixed seven-coin list is used.
+
+Click **All markets / สินทรัพย์ทั้งหมด** to search by symbol, base or quote asset, filter by quote currency (USDT, USDC, BTC, THB and all others returned), page through the full list, open a chart or star a pair into Watchlist. The dialog renders 100 rows per page; pagination changes presentation only, never the available catalog. Catalog requests are shared and cached for 15 minutes within this session. Opening the browser after cache expiry or clicking **Refresh list** loads new exchange listings. A failed refresh retains the previous catalog with an explicit error and its original timestamp.
+
+The catalog uses `permissions=SPOT`, `symbolStatus=TRADING` and `showPermissionSets=false`, and checks the returned Spot/status flags. Halted, delisted and non-Spot entries are not listed as active markets. Unicode asset names are supported and URL-encoded for streams. Base/quote identifiers and tick size come from Binance metadata. Paper/backtest results use the actual quote currency, so ETH/BTC results are labeled BTC rather than USD; chart prices preserve each pair's tick precision.
+
+A direct link can select a source and pair: `/?source=binance&symbol=BTCUSDT`.
 
 This adapter uses Binance's official, public market-data-only hosts:
 
@@ -54,7 +60,7 @@ No Binance account, API key, trading permission, backend or third-party proxy is
 
 Use **Reconnect** to refresh chart history and resubscribe while retaining workspace content. Non-native aggregated intervals use REST so they do not render an incomplete streamed aggregate. Monthly chart intervals are outside the supported live interval list.
 
-REST history and a real WebSocket candle were received successfully from this execution environment. Unit and simulated-DOM tests additionally cover reconnect, pair switching, stale stream detection, polling fallback and unsubscribe cleanup. This does not verify the user's browser/network or real browser rendering.
+REST history and a real WebSocket candle were received successfully from this execution environment. All 21 unit and simulated-DOM tests pass, additionally covering the full dynamic catalog, quote filtering, pagination, Unicode pairs, non-USDT quote units, small-price precision, reconnect, pair switching, stale stream detection, polling fallback and unsubscribe cleanup. This does not verify the user's browser/network or real browser rendering.
 
 ## Optional real AI through a local compatible server
 
