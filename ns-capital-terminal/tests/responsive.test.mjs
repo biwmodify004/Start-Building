@@ -34,7 +34,7 @@ test('drawer keyboard navigation remains inside the panel and watchlist selectio
 });
 test('compact menu forwards each action to the existing control and closes before opening a dialog',()=>{
  const f=fixture(820,1180);try{
-  const targets=[...f.doc.querySelectorAll('[data-menu-target]')];assert.equal(targets.length,9);assert.ok(targets.every(button=>f.$(button.dataset.menuTarget)));
+  const targets=[...f.doc.querySelectorAll('[data-menu-target]')];assert.equal(targets.length,10);assert.ok(targets.every(button=>f.$(button.dataset.menuTarget)));
   let calls=0;f.$('broker-btn').addEventListener('click',()=>{assert.equal(f.$('compact-menu').open,false);calls++;f.$('broker-dialog').showModal();});
   f.button('more').click();assert.equal(f.$('compact-menu').open,true);f.doc.querySelector('[data-menu-target="broker-btn"]').click();assert.equal(calls,1);assert.equal(f.$('broker-dialog').open,true);
   f.$('broker-dialog').close();f.button('markets').click();assert.equal(f.markets(),1);assert.equal(f.$('drawer-backdrop').hidden,true);
