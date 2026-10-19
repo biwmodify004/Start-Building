@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ns-capital-market-data": {
+      "command": "C:\\Python311\\python.exe",
+      "args": ["C:\\NS-Capital-Bridge\\mcp_server.py"],
+      "env": {
+        "NS_BRIDGE_URL": "http://127.0.0.1:8787",
+        "NS_BRIDGE_TOKEN": "REPLACE_WITH_YOUR_PRIVATE_BRIDGE_TOKEN"
+      }
+    }
+  }
+}

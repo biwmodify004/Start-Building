@@ -1,0 +1,50 @@
+name: NS Capital checks
+on:
+  pull_request:
+    paths: ['ns-capital-terminal/**', '.github/workflows/ns-capital-ci.yml', '.github/workflows/ns-capital-pages.yml']
+  push:
+    branches: [main]
+    paths: ['ns-capital-terminal/**', '.github/workflows/ns-capital-ci.yml', '.github/workflows/ns-capital-pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ns-capital-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Locate project
+        id: project
+        shell: bash
+        run: |
+          if [ -f ns-capital-terminal/package.json ]; then
+            echo 'directory=ns-capital-terminal' >> "$GITHUB_OUTPUT"
+          else
+            echo 'directory=.' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ${{ steps.project.outputs.directory }}/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install locked frontend dependencies
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: npm ci --no-audit --no-fund
+      - name: JavaScript tests
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: npm test
+      - name: Ledger, broker and AI tests
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: python -W error::ResourceWarning -m unittest discover -s tests -p 'test_*.py' -q
+      - name: Build website, Thai manual and bridge download
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: npm run build:pages

@@ -1,0 +1,1 @@
+google-auth[requests,cryptography]==2.62.0
