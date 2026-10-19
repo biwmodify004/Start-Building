@@ -1,0 +1,31 @@
+name: NS Capital bug report
+description: แจ้งปัญหาพร้อมข้อมูลที่ไม่เปิดเผยบัญชีหรือ Token
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: 'อย่าแนบ Token รหัสผ่าน ฐานจริง หรือ Statement ที่มีข้อมูลส่วนตัว ใช้ข้อมูลปกปิดหรือ Fixture เท่านั้น'
+  - type: input
+    id: version
+    attributes:
+      label: เวอร์ชันเว็บและ Bridge
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: ส่วนที่เกิดปัญหา
+      options: [Frontend / PWA, Binance, MT4, MT5, Journal / Analytics, Backend Risk, Ollama / AI, MCP, Deployment]
+  - type: textarea
+    id: steps
+    attributes:
+      label: ขั้นตอนที่ทำและผลที่พบ
+      description: ระบุเวลาและ Timezone พร้อมข้อความผิดพลาดที่ลบข้อมูลลับแล้ว
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: ผลที่คาดหวัง
+    validations:
+      required: true

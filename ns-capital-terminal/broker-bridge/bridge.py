@@ -16,9 +16,13 @@ import re
 import secrets
 import threading
 import time
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 from trading import TradingService, key as trading_account_key
 from ai_advisor import AITradeAdvisor
+from database import LedgerStore, number as ledger_number
+from journal import JournalService
+from analytics import JournalAnalytics
 from mcp_server import VERSIONS as MCP_VERSIONS, handle as mcp_handle, call_tool as mcp_call_tool
 
 PROTOCOL = "ns-market-bridge/1"
@@ -91,7 +95,7 @@ class MT5Source:
     def status(self):
         with self.lock:
             terminal, account = self.mt5.terminal_info(), self.mt5.account_info()
-        details = None if account is None else {"id": str(getattr(account, "login", "")), "server": str(getattr(account, "server", "")), "currency": str(getattr(account, "currency", "")), "mode": "demo" if getattr(account, "trade_mode", None) == 0 else "real" if getattr(account, "trade_mode", None) == 2 else "contest" if getattr(account, "trade_mode", None) == 1 else "unknown", "balance": getattr(account, "balance", None), "equity": getattr(account, "equity", None), "freeMargin": getattr(account, "margin_free", None), "positionMode": "hedging" if getattr(account, "margin_mode", None) == 2 else "netting" if getattr(account, "margin_mode", None) in (0, 1) else "unknown"}
+        details = None if account is None else {"id": str(getattr(account, "login", "")), "server": str(getattr(account, "server", "")), "currency": str(getattr(account, "currency", "")), "mode": "demo" if getattr(account, "trade_mode", None) == 0 else "real" if getattr(account, "trade_mode", None) == 2 else "contest" if getattr(account, "trade_mode", None) == 1 else "unknown", "balance": getattr(account, "balance", None), "equity": getattr(account, "equity", None), "freeMargin": getattr(account, "margin_free", None), "credit": getattr(account, "credit", 0), "positionMode": "hedging" if getattr(account, "margin_mode", None) == 2 else "netting" if getattr(account, "margin_mode", None) in (0, 1) else "unknown"}
         return {"protocol": PROTOCOL, "readOnly": True, "platform": "MT5", "broker": getattr(account, "company", "MT5 broker"), "connected": bool(terminal and terminal.connected and account), "serverTimeBasis": "UTC", "accountCurrency": getattr(account, "currency", None), "account": details}
 
     def symbols(self):
@@ -163,7 +167,7 @@ class MT4Source:
                 ticker = valid_symbol(m["ticker"])
                 if not isinstance(m.get("currency"), str) or not m["currency"]:
                     continue
-                catalog[ticker] = {"ticker": ticker, "description": str(m.get("description", ticker))[:500], "currency": m["currency"][:12], "tickSize": finite(m["tickSize"], 1e-16), "type": classify(ticker, str(m.get("path", ""))), "lotStep": finite(m.get("lotStep", .01), 1e-16), "assetClass": "cfd", "expiry": finite(m.get("expiry", 0), 0), "volumeMin": finite(m.get("volumeMin", .01), 1e-16), "volumeMax": finite(m.get("volumeMax", 100), 1e-16), "volumeStep": finite(m.get("lotStep", .01), 1e-16), "point": finite(m.get("point", m["tickSize"]), 1e-16), "stopsLevel": finite(m.get("stopsLevel", 0))}
+                catalog[ticker] = {"ticker": ticker, "description": str(m.get("description", ticker))[:500], "currency": m["currency"][:12], "tickSize": finite(m["tickSize"], 1e-16), "tickValue":finite(m.get("tickValue",0)), "type": classify(ticker, str(m.get("path", ""))), "lotStep": finite(m.get("lotStep", .01), 1e-16), "assetClass": "cfd", "expiry": finite(m.get("expiry", 0), 0), "volumeMin": finite(m.get("volumeMin", .01), 1e-16), "volumeMax": finite(m.get("volumeMax", 100), 1e-16), "volumeStep": finite(m.get("lotStep", .01), 1e-16), "point": finite(m.get("point", m["tickSize"]), 1e-16), "stopsLevel": finite(m.get("stopsLevel", 0))}
         quotes = [clean_quote(q) for q in payload.get("quotes", [])]
         series = []
         for entry in payload.get("series", []):
@@ -186,7 +190,7 @@ class MT4Source:
         if account is not None:
             if not isinstance(account, dict) or not str(account.get("id", "")) or not str(account.get("server", "")):
                 raise ValueError("Invalid trading account identity")
-            account = {"id": str(account["id"])[:80], "server": str(account["server"])[:160], "currency": str(account.get("currency", ""))[:12], "mode": "demo" if account.get("mode") == "demo" else "real", **{key: finite(account[key]) for key in ("balance", "equity", "freeMargin") if key in account}}
+            account = {"id": str(account["id"])[:80], "server": str(account["server"])[:160], "currency": str(account.get("currency", ""))[:12], "mode": "demo" if account.get("mode") == "demo" else "real", **{key: ledger_number(account[key]) for key in ("balance", "equity", "freeMargin", "credit") if key in account}}
         with self.condition:
             if account is not None:
                 if self.account and (account["id"], account["server"]) != (self.account["id"], self.account["server"]):
@@ -213,16 +217,18 @@ class MT4Source:
             self.heartbeat = time.monotonic()
             self.condition.notify_all()
 
-    def next_trade(self):
-        with self.condition:
-            while self.trade_queue:
-                ident, command = self.trade_queue.popitem(last=False)
-                if command["expiresAt"] < time.time() * 1000:
-                    self.trade_results[ident] = {"status":"rejected", "message":"MT4 command expired before pickup"}
-                    continue
-                # One delivery only; the EA re-posts receipts, never re-runs a command.
-                return "|".join(str(command[k]) for k in ("requestId", "action", "symbol", "side", "volume", "sl", "tp", "deviation", "position", "accountId", "server", "expiresAt", "price"))
-            return ""
+    def next_trade(self, guard=None):
+        while True:
+            with self.condition:
+                if not self.trade_queue:return ""
+                ident,command=self.trade_queue.popitem(last=False)
+            try:
+                if command['expiresAt']<time.time()*1000:raise ValueError('MT4 command expired before pickup')
+                if guard:guard(command)
+            except Exception as error:
+                with self.condition:self.trade_results[ident]={'status':'rejected','message':'MT4 delivery blocked: '+str(error)[:300]}
+                continue
+            return "|".join(str(command[k]) for k in ("requestId", "action", "symbol", "side", "volume", "sl", "tp", "deviation", "position", "accountId", "server", "expiresAt", "price"))
 
     def publish_trade_result(self, payload):
         ident = payload.get("requestId", "")
@@ -270,13 +276,16 @@ class MT4Source:
                     raise RuntimeError("MT4 EA did not respond. Check Experts log, WebRequest and UTC offset")
             return filtered()
 
-def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=False, trade_token=None):
+def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=False, trade_token=None, store=None, publish_token=None, history_days=90):
     if enable_trading and (not trade_token or len(trade_token) < 32 or trade_token == token):
         raise ValueError("Trading needs a separate 32+ character trade token")
-    trading = TradingService(source, enabled=enable_trading)
+    store = store if store is not None else LedgerStore(':memory:')
+    journal = JournalService(source,store,days=history_days)
+    analytics = JournalAnalytics(journal)
+    trading = TradingService(source, enabled=enable_trading,journal=journal)
     advisor = AITradeAdvisor(source, trading)
     def status_response():
-        return {**source.status(), "readOnly":not enable_trading, "trading":trading.capability(), "ai":advisor.status()}
+        return {**source.status(), "readOnly":not enable_trading, "trading":trading.capability(), "ai":advisor.status(), "journal":{"enabled":True,"persistent":store.path!=':memory:',"analytics":True}, "publisherRequired":isinstance(source,MT4Source)}
     def mcp_request(path, params):
         if path == "/v1/trading/state":
             return trading.state(trading_account_key(source.status()))
@@ -320,7 +329,7 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
-        def authorized(self, trade=False):
+        def authorized(self, trade=False, publish=False):
             if not self.host_ok() or not self.origin_ok():
                 self.reply(403, {"error": "Host or Origin is not allowed"}); return False
             provided = self.headers.get("Authorization", "")
@@ -328,6 +337,8 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
                 self.reply(401, {"error": "Invalid bridge token"}); return False
             if trade and (not enable_trading or not hmac.compare_digest(self.headers.get("X-Trade-Token", "").encode("utf-8"), (trade_token or "").encode("utf-8"))):
                 self.reply(403, {"error":"Manual trading is disabled or the separate Trade token is invalid"}); return False
+            if publish and (not publish_token or not hmac.compare_digest(self.headers.get("X-Publish-Token", "").encode("utf-8"), publish_token.encode("utf-8"))):
+                self.reply(403,{"error":"A separate EA Publish token is required"});return False
             return True
         def do_OPTIONS(self):
             if not self.host_ok() or not self.origin_ok():
@@ -351,13 +362,28 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
                     return self.reply(200, status_response())
                 if url.path == "/v1/ai/status":
                     return self.reply(200, advisor.check() if query.get("check")=="1" else advisor.status())
+                if url.path == "/v1/journal":
+                    days,page=int(query.get("days",90)),int(query.get("page",0))
+                    if not 1<=days<=3650 or not 0<=page<=100000:raise ValueError("Invalid journal range/page")
+                    return self.reply(200,journal.view(query.get("accountKey"),days,page))
+                if url.path == "/v1/journal/analytics":
+                    return self.reply(200,analytics.snapshot(query.get('accountKey'),int(query.get('days',90))))
+                if url.path == "/v1/journal/shares":
+                    return self.reply(200,analytics.shares(query.get('accountKey')))
+                if url.path == "/v1/journal/leaderboard":
+                    return self.reply(200,analytics.rankings(query.get('accountKey')))
+                if url.path == "/v1/risk":
+                    return self.reply(200,trading.risk.snapshot(query.get("accountKey")))
                 if url.path == "/v1/trading/state":
                     return self.reply(200, trading.state(query.get("accountKey")))
                 if url.path == "/v1/trading/receipt":
                     return self.reply(200, trading.receipt(query.get("requestId"), query.get("accountKey")))
                 if url.path == "/v1/mt4/trade-request" and isinstance(source, MT4Source):
-                    if self.authorized(trade=True):
-                        return self.reply(200, source.next_trade(), plain=True)
+                    if self.authorized(trade=True,publish=True):
+                        def guard(command):
+                            checked=trading.risk.check(command,command['accountKey'])
+                            if checked.get('policyVersion')!=command.get('risk',{}).get('policyVersion'):raise ValueError('Risk policy changed before EA pickup')
+                        return self.reply(200, source.next_trade(guard), plain=True)
                     return
                 if url.path == "/v1/symbols":
                     return self.reply(200, {"symbols": source.symbols()})
@@ -396,16 +422,28 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
             except Exception:
                 self.reply(503, {"error": "Market data unavailable. Check the logged-in terminal and EA / history"})
         def do_POST(self):
+            if urlsplit(self.path).path == '/v1/track-record/view':
+                if not self.host_ok() or not self.origin_ok():return self.reply(403,{'error':'Origin or Host is not allowed'})
+                try:
+                    size=int(self.headers.get('Content-Length','0'))
+                    if not 0<size<=512 or not self.headers.get('Content-Type','').startswith('application/json'):raise ValueError('Invalid report request')
+                    raw=json.loads(self.rfile.read(size))
+                    if not isinstance(raw,dict) or not isinstance(raw.get('token'),str):raise ValueError('Invalid report request')
+                    return self.reply(200,analytics.shared(raw['token']))
+                except (ValueError,KeyError,TypeError):return self.reply(404,{'error':'Report is unavailable or expired'})
             if not self.authorized():
                 return
             if urlsplit(self.path).path == "/mcp":
                 return self.post_mcp()
-            if urlsplit(self.path).path == "/v1/ai/propose":
+            if urlsplit(self.path).path in ("/v1/journal/sync","/v1/journal/note","/v1/journal/delete-note","/v1/journal/classify","/v1/journal/preferences","/v1/journal/share","/v1/journal/revoke-share","/v1/journal/leaderboard","/v1/risk/policy","/v1/risk/reset","/v1/mt4/history"):
+                return self.post_ledger()
+            if urlsplit(self.path).path in ("/v1/ai/propose", "/v1/ai/coaching"):
                 return self.post_ai()
             if urlsplit(self.path).path in ("/v1/trading/preview", "/v1/trading/execute", "/v1/mt4/trade-result"):
                 return self.post_trade()
             if urlsplit(self.path).path != "/v1/mt4/publish" or not isinstance(source, MT4Source):
                 return self.reply(404, {"error": "No such route"})
+            if not self.authorized(publish=True):return
             try:
                 size = int(self.headers.get("Content-Length", "0"))
                 if not 0 < size <= 8 * 1024 * 1024:
@@ -419,6 +457,38 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
                 self.reply(200, {"ok": True})
             except (ValueError, KeyError, TypeError, AttributeError) as error:
                 self.reply(400, {"error": str(error)})
+        def post_ledger(self):
+            path=urlsplit(self.path).path
+            if (path.startswith('/v1/risk/') or path=='/v1/journal/classify') and not self.authorized(trade=True):return
+            if path=='/v1/mt4/history':
+                if not isinstance(source,MT4Source):return self.reply(404,{'error':'MT4 history route unavailable'})
+                if not self.authorized(publish=True):return
+            try:
+                size=int(self.headers.get('Content-Length','0'))
+                maximum=1048576 if path=='/v1/mt4/history' else 16384
+                if not 0<size<=maximum or not self.headers.get('Content-Type','').startswith('application/json'):raise ValueError('A bounded JSON object is required')
+                raw=json.loads(self.rfile.read(size))
+                if not isinstance(raw,dict):raise ValueError('JSON object required')
+                if path=='/v1/mt4/history':return self.reply(200,journal.ingest_mt4(raw))
+                if path=='/v1/journal/classify':
+                    with trading.lock:return self.reply(200,journal.classify(raw))
+                if path=='/v1/journal/note':return self.reply(200,journal.save_note(raw))
+                if path=='/v1/journal/delete-note':return self.reply(200,journal.delete_note(raw))
+                if path=='/v1/journal/preferences':return self.reply(200,analytics.save_preferences(raw))
+                if path=='/v1/journal/share':return self.reply(200,analytics.create_share(raw))
+                if path=='/v1/journal/revoke-share':return self.reply(200,analytics.revoke_share(raw))
+                if path=='/v1/journal/leaderboard':return self.reply(200,analytics.publish_rank(raw))
+                if path=='/v1/journal/sync':
+                    days=raw.get('days',history_days)
+                    if isinstance(days,bool) or not isinstance(days,int) or not 2<=days<=3650:raise ValueError('Sync range must be 2..3650 days')
+                    journal.sync(raw.get('accountKey'),days=days)
+                    return self.reply(200,journal.view(raw.get('accountKey'),days))
+                with trading.lock:
+                    result=trading.risk.save(raw) if path=='/v1/risk/policy' else trading.risk.reset_reference(raw)
+                return self.reply(200,result)
+            except (ValueError,KeyError,TypeError) as error:return self.reply(400,{'error':str(error)})
+            except Exception:return self.reply(503,{'error':'Ledger/history unavailable; new entries remain blocked until synchronized'})
+
         def post_ai(self):
             try:
                 size=int(self.headers.get("Content-Length","0"))
@@ -427,7 +497,7 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
                 payload=json.loads(self.rfile.read(size))
                 if not isinstance(payload,dict):
                     raise ValueError("JSON object required")
-                return self.reply(200,advisor.propose(payload))
+                return self.reply(200,advisor.coach(payload,analytics) if urlsplit(self.path).path=='/v1/ai/coaching' else advisor.propose(payload))
             except (ValueError,KeyError,TypeError) as error:
                 return self.reply(400,{"error":str(error)})
             except Exception:
@@ -450,6 +520,7 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
                     return self.reply(200, trading.execute(payload))
                 if not isinstance(source, MT4Source):
                     return self.reply(404, {"error":"MT4 receipt route unavailable"})
+                if not self.authorized(publish=True):return
                 source.publish_trade_result(payload)
                 return self.reply(200, {"ok":True})
             except (ValueError, KeyError, TypeError) as error:
@@ -475,6 +546,9 @@ def make_handler(source, token, allowed_origins, allowed_hosts, enable_trading=F
         def do_DELETE(self):
             if self.authorized():
                 self.reply(405, {"error": "Stateless MCP has no server session to delete"})
+    Handler.journal_service=journal
+    Handler.trading_service=trading
+    Handler.ledger_store=store
     return Handler
 
 def main():
@@ -499,14 +573,39 @@ def main():
     origins = set(filter(None, (x.strip() for x in os.getenv("NS_ALLOWED_ORIGINS", "https://ns-capital-terminal.biw-modify004.chatgpt.site,http://127.0.0.1:8080,http://localhost:8080").split(","))))
     hosts = set(filter(None, os.getenv("NS_ALLOWED_HOSTS", "localhost,127.0.0.1,::1").split(",")))
     source = MT5Source(os.getenv("NS_MT5_PATH")) if args.mode == "mt5" else MT4Source()
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(source, token, origins, hosts, enable_trading=args.enable_trading, trade_token=trade_token))
+    publish_token=os.getenv('NS_PUBLISH_TOKEN','')
+    if args.mode=='mt4':
+        if not publish_token:
+            publish_token=secrets.token_urlsafe(32)
+            print('Separate EA Publish token (EA only; never enter in the website): '+publish_token,flush=True)
+        if len(publish_token)<32 or publish_token in (token,trade_token) or any(ord(c)<33 or ord(c)>126 for c in publish_token):raise SystemExit('NS_PUBLISH_TOKEN must be a separate 32+ character token')
+    default_db=Path(os.getenv('LOCALAPPDATA',str(Path.home()/'.local'/'share')))/'NSCapital'/'trading.sqlite3'
+    database=LedgerStore(os.path.expandvars(os.path.expanduser(os.getenv('NS_DB_PATH',str(default_db)))))
+    days=int(os.getenv('NS_HISTORY_DAYS','90'));interval=int(os.getenv('NS_HISTORY_SYNC_SECONDS','30'))
+    if not 2<=days<=3650 or not 5<=interval<=300:raise SystemExit('History days must be 2..3650 and sync interval 5..300 seconds')
+    handler=make_handler(source,token,origins,hosts,enable_trading=args.enable_trading,trade_token=trade_token,store=database,publish_token=publish_token,history_days=days)
+    server = ThreadingHTTPServer(("127.0.0.1", args.port),handler)
+    stop=threading.Event()
+    def sync_loop():
+        while not stop.is_set():
+            try:
+                status=source.status()
+                if status.get('connected'):
+                    expected=trading_account_key(status)
+                    handler.journal_service.sync(expected)
+                    handler.trading_service.risk.snapshot(expected)
+            except Exception:pass  # The account's sync status reports the failure; never log financial records.
+            stop.wait(interval)
+    worker=threading.Thread(target=sync_loop,daemon=True);worker.start()
+    print('Server ledger: '+database.path+' (share this local path across your account bridges)',flush=True)
     print(f"NS {args.mode.upper()} gateway ({'manual trading enabled' if args.enable_trading else 'market data only'}): http://127.0.0.1:{args.port}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
-        server.server_close()
+        stop.set();server.server_close();worker.join(timeout=5)
+        if not worker.is_alive():database.close()
 
 if __name__ == "__main__":
     main()

@@ -1,3 +1,5 @@
+> **รุ่น 1.8:** ใช้ไฟล์ทั้งชุดรวม database.py, journal.py, analytics.py และ risk.py ต้องตั้ง Backend Risk ก่อนเปิดใหม่ MT4 ต้องอัปเดต EA/Publish token/All History อ่านคู่มือฉบับเต็ม USER-MANUAL-TH.md ใน ZIP หรือหน้า manual.html ของเว็บก่อนเริ่ม
+
 # NS Capital · ราคาโบรกเกอร์ + MCP
 
 ชุดนี้ดึงราคา Bid/Ask และ OHLCV จากบัญชี **MT4 หรือ MT5 ที่ล็อกอินอยู่แล้วบน Windows / Windows VPS** มาแสดงบน NS Capital Terminal และให้ AI อ่านผ่าน MCP ได้ ตัวเชื่อมสร้างขึ้นสำหรับ NS Capital ใช้กับ Axi หรือบัญชี MetaTrader ของโบรกเกอร์อื่นได้ตามสินทรัพย์และสิทธิ์ข้อมูลของบัญชีนั้น ไม่ใช่ MCP ทางการของ Axi และยังไม่ถือว่าเชื่อมบัญชีสำเร็จจนกว่าเว็บจะแสดงชื่อโบรกจริงและได้รับ tick สด
@@ -200,3 +202,12 @@ MCP ใช้ได้กับ AI client ที่รองรับ โดย�
 
 
 เอกสาร Ollama หลัก: https://docs.ollama.com/api/openai-compatibility และ https://docs.ollama.com/capabilities/structured-outputs
+
+
+## ฐานข้อมูลกลาง + Auto Journal + Backend Risk (1.8)
+
+อัปเดตทุกไฟล์ใน ZIP รวมถึง `database.py`, `journal.py`, `risk.py` และ EA หากใช้ MT4 เปิด [JOURNAL-RISK-TH.md](JOURNAL-RISK-TH.md) สำหรับการตั้ง NS_DB_PATH, ซิงก์ประวัติ, สูตร Daily Loss/Drawdown, สิทธิ์ Publisher token และการสำรองฐานข้อมูล
+
+Production CLI สร้าง SQLite จริงที่เครื่อง Bridge/VPS และซิงก์ประวัติขณะ Bridge ทำงาน เว็บเปิด Journal เพื่ออ่านข้อมูลแยกบัญชีและบันทึกโน้ตที่ Backend ได้ ค่า Risk ต่อไม้/Daily Loss/Drawdown ยังต้องตั้งใน Trade → Backend Risk ของแต่ละบัญชี ถ้ายังไม่ตั้งจะไม่อนุญาตเปิดใหม่ ส่วน Close/การลดความเสี่ยงยังใช้ได้ตามสิทธิ์ Terminal
+
+MT4 รุ่นนี้ต้องตั้ง PublishToken แยกจาก token ที่ใส่เว็บ เลือก All History แล้วเปิด HistoryReady=true ประวัติที่มีรายการ Balance คลุมเครือต้องตรวจ Statement และจำแนกก่อนใช้คำนวณความเสี่ยง

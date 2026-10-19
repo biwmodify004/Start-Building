@@ -19,14 +19,17 @@ NOW=lambda:int(time.time()*1000)
 class FakeMT5:
     TRADE_ACTION_DEAL=1;TRADE_ACTION_SLTP=6;ORDER_TYPE_BUY=0;ORDER_TYPE_SELL=1;ORDER_FILLING_IOC=1;ORDER_FILLING_FOK=0;ORDER_FILLING_RETURN=2;ORDER_TIME_GTC=0
     def __init__(self):
-        self.login=12345678;self.allowed=True;self.price=4501.;self.tick_time=NOW();self.sent=[];self.retcode=10009;self.checkcode=0;self.none_result=False;self.positions=[]
+        self.login=12345678;self.allowed=True;self.price=4501.;self.tick_time=NOW();self.sent=[];self.retcode=10009;self.checkcode=0;self.none_result=False;self.positions=[];self.history=[];self.balance=10000;self.equity=9998;self.credit=0
     def initialize(self):return True
     def terminal_info(self):return NS(connected=True,trade_allowed=self.allowed,tradeapi_disabled=False)
-    def account_info(self):return NS(login=self.login,company='FIXTURE ONLY',server='Fixture-Server',currency='USD',trade_mode=0,trade_allowed=True,trade_expert=True,margin_mode=2,balance=10000,equity=9998,margin_free=9000)
+    def account_info(self):return NS(login=self.login,company='FIXTURE ONLY',server='Fixture-Server',currency='USD',trade_mode=0,trade_allowed=True,trade_expert=True,margin_mode=2,balance=self.balance,equity=self.equity,credit=self.credit,margin_free=9000)
     def symbol_select(self,s,v):return s=='XAUUSD.pro'
     def symbol_info(self,s):return NS(name=s,description='Fixture Gold',currency_profit='USD',currency_base='XAU',path='CFD/Metals',trade_mode=4,trade_calc_mode=2,trade_tick_size=.01,point=.01,trade_tick_value=1,trade_contract_size=100,volume_min=.01,volume_max=10.,volume_step=.01,trade_stops_level=10,trade_exemode=2,filling_mode=3,exchange='',expiration_time=0)
     def symbols_get(self):return [self.symbol_info('XAUUSD.pro')]
     def symbol_info_tick(self,s):return NS(bid=self.price,ask=self.price+.2,time_msc=self.tick_time,time=self.tick_time//1000)
+    def history_deals_get(self,start,end):
+        return [d for d in self.history if start.timestamp()*1000<=d.time_msc<=end.timestamp()*1000]
+    def order_calc_profit(self,side,symbol,volume,entry,exit):return (exit-entry)*100*volume*(1 if side==0 else -1)
     def positions_get(self):return self.positions
     def order_check(self,r):return NS(retcode=self.checkcode,comment='fixture order check')
     def order_send(self,r):
@@ -89,8 +92,10 @@ class ExecutionTests(unittest.TestCase):
 
 class TradingHTTPTests(unittest.TestCase):
     def setUp(self):
-        self.module,self.source,_=fixture();self.server=ThreadingHTTPServer(('127.0.0.1',0),make_handler(self.source,TOKEN,{'https://terminal.test'},{'127.0.0.1'},enable_trading=True,trade_token=TRADE));self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
-    def tearDown(self):self.server.shutdown();self.server.server_close();self.thread.join()
+        self.module,self.source,_=fixture();handler=make_handler(self.source,TOKEN,{'https://terminal.test'},{'127.0.0.1'},enable_trading=True,trade_token=TRADE);self.store=handler.ledger_store
+        handler.trading_service.risk.save({'accountKey':key(self.source.status()),'version':0,'maxRiskPct':5,'dailyLossPct':10,'maxDrawdownPct':20,'costPerLot':0,'slippagePoints':0,'resetMinuteUtc':0,'paused':False})
+        self.server=ThreadingHTTPServer(('127.0.0.1',0),handler);self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
+    def tearDown(self):self.server.shutdown();self.server.server_close();self.thread.join();self.store.close()
     def request(self,path,body=None,trade=TRADE,origin='https://terminal.test'):
         conn=http.client.HTTPConnection('127.0.0.1',self.server.server_address[1],timeout=3);headers={'Authorization':'Bearer '+TOKEN,'X-Trade-Token':trade,'Content-Type':'application/json','Origin':origin};conn.request('POST' if body is not None else 'GET',path,json.dumps(body) if body is not None else None,headers);r=conn.getresponse();result=r.status,json.loads(r.read());conn.close();return result
     def test_separate_trade_token_origin_and_account_binding_are_required(self):

@@ -197,24 +197,29 @@ class MT4Execution:
         return {'status': 'pending', 'message': 'Waiting for the MT4 EA. Do not resend this request'}
 
 class TradingService:
-    def __init__(self, source, enabled=False, now=None):
+    def __init__(self, source, enabled=False, now=None, journal=None):
         self.source, self.enabled = source, bool(enabled)
         self.now = now or (lambda: int(time.time() * 1000))
         self.executor = MT5Execution(source) if hasattr(source, 'mt5') else MT4Execution(source)
         self.lock, self.previews, self.receipts = threading.RLock(), OrderedDict(), OrderedDict()
+        self.journal=journal;self.store=journal.store if journal else None
+        if journal:
+            from risk import RiskEngine
+            self.risk=RiskEngine(source,journal,self.executor,now=self.now)
+        else:self.risk=None
 
     def capability(self):
         try:
             allowed = bool(self.enabled and self.executor.permissions())
         except (AttributeError, RuntimeError):
             allowed = False
-        return {'supported': True, 'enabled': self.enabled, 'allowed': allowed, 'actions': ['open', 'close', 'modify'], 'mode': 'manual'}
+        return {'supported': True, 'enabled': self.enabled, 'allowed': allowed, 'actions': ['open', 'close', 'modify'], 'mode': 'manual', 'riskRequired':self.risk is not None}
 
     def state(self, expected):
         status = bound(self.source, expected)
         positions = self.executor.positions()
         bound(self.source, expected)
-        return {'accountKey': expected, 'account': status['account'], 'broker': status['broker'], 'platform': status['platform'], 'trading': self.capability(), 'positions': positions, 'updatedAt': self.now()}
+        return {'accountKey': expected, 'account': status['account'], 'broker': status['broker'], 'platform': status['platform'], 'trading': self.capability(), 'positions': positions, 'risk':self.risk.snapshot(expected) if self.risk else None, 'receipts':self.store.commands(self.journal.dbkey(expected)) if self.store else [], 'updatedAt': self.now()}
 
     def preview(self, raw):
         if not self.enabled:
@@ -222,6 +227,7 @@ class TradingService:
         expected = raw.get('accountKey')
         with self.lock:
             command, _ = self.executor.prepare(raw, expected, self.now())
+            if self.risk:command['risk']=self.risk.check(command,expected)
             bound(self.source, expected)
             preview_id = secrets.token_urlsafe(24)
             preview = {**command, 'previewId': preview_id, 'expiresAt': self.now() + 30000, 'usedBy': None}
@@ -240,6 +246,12 @@ class TradingService:
         if not isinstance(request_id, str) or not IDENTIFIER.fullmatch(request_id):
             raise ValueError('A valid unique requestId is required')
         with self.lock:
+            if self.store:
+                stored=self.store.command(self.journal.dbkey(expected),request_id)
+                if stored:
+                    if stored['previewId']!=preview_id or stored['accountKey']!=expected:raise ValueError('requestId is already bound to another request')
+                    self.receipts[request_id]=stored
+                    return self.receipt(request_id,expected)
             if request_id in self.receipts:
                 receipt = self.receipts[request_id]
                 if receipt['previewId'] != preview_id or receipt['accountKey'] != expected:
@@ -255,19 +267,31 @@ class TradingService:
                 raise ValueError('Session request limit reached. Check all outstanding receipts before restarting the bridge')
             preview['usedBy'] = request_id
             self.receipts[request_id] = {'requestId': request_id, 'previewId': preview_id, 'accountKey': expected, 'status': 'pending', 'submittedAt': self.now(), 'message': 'Submitted; check receipt, do not send again'}
-        try:
-            result = self.executor.execute(preview, expected, request_id, self.now())
-        except ValueError as error:
-            result = {'status': 'rejected', 'message': str(error)}
-        except Exception:
-            result = {'status': 'unknown', 'message': 'Execution outcome unavailable. Check the terminal before taking another action'}
-        with self.lock:
+            if self.store:
+                stored,claimed=self.store.claim(self.journal.dbkey(expected),self.receipts[request_id])
+                if not claimed:
+                    if stored['previewId']!=preview_id:raise ValueError('requestId is already bound to another preview')
+                    self.receipts[request_id]=stored
+                    return dict(stored)
+            attempted=False
+            try:
+                if self.risk:
+                    checked=self.risk.check(preview,expected)
+                    if checked.get('policyVersion')!=preview.get('risk',{}).get('policyVersion'):raise ValueError('Risk policy changed. Review a new request')
+                attempted=True
+                result = self.executor.execute(preview, expected, request_id, self.now())
+            except ValueError as error:
+                result = {'status': 'rejected', 'message': str(error)}
+            except Exception:
+                result = {'status': 'unknown' if attempted else 'rejected', 'message': 'Execution outcome unavailable. Check the terminal before taking another action' if attempted else 'Risk/history check unavailable. No execution was attempted'}
             self.receipts[request_id].update(result)
+            if self.store:self.store.save_command(self.journal.dbkey(expected),self.receipts[request_id])
             return dict(self.receipts[request_id])
 
     def receipt(self, request_id, expected):
         with self.lock:
             result = self.receipts.get(request_id)
+            if result is None and self.store:result=self.store.command(self.journal.dbkey(expected),request_id)
             if not result or result['accountKey'] != expected:
                 raise ValueError('Unknown request for this account')
             if isinstance(self.executor, MT4Execution) and result['status'] == 'pending':
@@ -278,4 +302,6 @@ class TradingService:
                     elif self.now() - result['submittedAt'] > 30000:
                         self.source.trade_queue.pop(request_id, None)
                         result.update(status='unknown', message='MT4 receipt unavailable. Check terminal positions/history before another action')
+            if result['status']=='pending' and self.now()-result['submittedAt']>120000:result.update(status='unknown',message='No durable completion receipt. Inspect terminal history; never resend this request')
+            if self.store:self.store.save_command(self.journal.dbkey(expected),result)
             return dict(result)
