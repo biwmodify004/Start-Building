@@ -4,3 +4,5 @@ dist/
 *.tar.gz
 .env
 .env.*
+__pycache__/
+*.pyc

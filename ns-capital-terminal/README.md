@@ -13,7 +13,7 @@ npm run build
 npm start
 ```
 
-Open `http://127.0.0.1:8080`. Any static host can serve `dist/`. No API keys are needed for the default mode. All application and chart scripts are bundled locally; no chart CDN is needed.
+Open `http://127.0.0.1:8080`. Any static host can serve `dist/`. No API keys are needed for the default mode. The Vela workspace and its dependencies are bundled locally. The optional Global markets viewer loads the official TradingView widget script and frame from TradingView.
 
 ## Included
 
@@ -28,11 +28,11 @@ Open `http://127.0.0.1:8080`. Any static host can serve `dist/`. No API keys are
 
 ## Data and calculation boundaries
 
-The initial XAUUSD and other sample data are **synthetic** and end on 16 October 2026. They are neither historical market observations nor current quotes. Samples do not implement exchange trading calendars. Select Binance for external crypto data; availability depends on network, provider and region. Forex, gold and index live feeds need a separate licensed provider integration. Import CSV to research your own prices.
+The initial XAUUSD and other sample data are **synthetic** and end on 16 October 2026. They are neither historical market observations nor current quotes. Samples do not implement exchange trading calendars. Select Binance for external crypto data; availability depends on network, provider and region. Global markets displays provider-labeled TradingView reference charts for Forex, metals and CFD indices. To use broker candles inside Vela, connect the included personal MT4/MT5 gateway to an already logged-in terminal. Broker data are unavailable until that gateway is running and authenticated. Import CSV to research other licensed prices.
 
 CSV imports require a header and positive OHLC prices. Supported delimiters: comma, semicolon, tab. Columns: `time`/`timestamp` or `date` + `time`, `open`, `high`, `low`, `close`, optional `volume`/`tickvol`. Epoch seconds, epoch milliseconds, ISO dates and MT5 dates are supported. Unzoned date strings use the import dialog's UTC offset. Duplicates keep the last row, then sort ascending. Finer timeframes cannot be reconstructed from coarse CSV bars. Limits: 25 MiB per import, 100,000 CSV rows; chart history capture retains at most 10,000 bars per chart identity.
 
-Backtests use loaded chart history, or the revealed prefix during Replay. Current forming Binance bars are excluded. The available history is not an entire exchange archive. Size is in asset units, and capital/P&L use the symbol's quote currency. Backtests model no margin, leverage, funding, swap, spread other than the chosen slippage, volume constraints or liquidation. There can be at most one strategy position. A surviving position is closed at the final bar. Drawdown is sampled at bar closes, so intrabar drawdown can be larger. Limited sample results are not evidence of an investment edge.
+Backtests use loaded chart history, or the revealed prefix during Replay. Current forming Binance and broker bars are excluded. The available history is not an entire exchange archive. Size is in asset units, and capital/P&L use the symbol's quote currency. Backtests model no margin, leverage, funding, swap, spread other than the chosen slippage, volume constraints or liquidation. There can be at most one strategy position. A surviving position is closed at the final bar. Drawdown is sampled at bar closes, so intrabar drawdown can be larger. Limited sample results are not evidence of an investment edge.
 
 Paper orders use asset units, not CFD lots. Accounts are separate by the actual quote currency, including USD, USDT, BTC, ETH, THB and other catalog quotes. Fills use visible chart prices with configurable commission but no paper slippage or margin modeling. Stop/target exits require this page to receive new bars on the same symbol/timeframe and Replay mode. Alerts run only while the page is open; no background service or broker orders are installed.
 
@@ -56,11 +56,38 @@ This adapter uses Binance's official, public market-data-only hosts:
 
 No Binance account, API key, trading permission, backend or third-party proxy is required for this public feed. This is **Spot**, not futures, Forex or gold. External network and regional availability can still affect connectivity.
 
-`BINANCE · LIVE` appears only after a fresh valid WebSocket candle for the selected pair and interval. Socket opening alone is not counted as a live price. The status line shows the receive time in Thailand time. A silent socket is closed after 15 seconds; REST updates are requested every 5 seconds while reconnecting, with no overlapping polling requests. REST fallback is labeled `BINANCE · REST`. Invalid, stale, wrong-symbol and out-of-order stream messages are ignored. When the selected live quote is unavailable or stale, paper Buy/Sell buttons are disabled. Existing data are not silently replaced with synthetic sample prices.
+`BINANCE · LIVE` appears only after a fresh valid WebSocket candle for the selected pair and interval. Socket opening alone is not counted as a live price. The status line shows the receive time in Thailand time. A silent socket is closed after 15 seconds; REST updates are requested every 5 seconds while reconnecting, with no overlapping polling requests. REST fallback is labeled `BINANCE · REST`. Invalid, stale, wrong-symbol and out-of-order stream messages are ignored. When the selected Binance quote is unavailable or stale, paper Buy/Sell buttons are disabled. Broker-feed CFD paper trading is not enabled; its quotes/candles are available for charting and unit-based research backtests. Existing data are not silently replaced with synthetic sample prices.
 
 Use **Reconnect** to refresh chart history and resubscribe while retaining workspace content. Non-native aggregated intervals use REST so they do not render an incomplete streamed aggregate. Monthly chart intervals are outside the supported live interval list.
 
-REST history and a real WebSocket candle were received successfully from this execution environment. All 21 unit and simulated-DOM tests pass, additionally covering the full dynamic catalog, quote filtering, pagination, Unicode pairs, non-USDT quote units, small-price precision, reconnect, pair switching, stale stream detection, polling fallback and unsubscribe cleanup. This does not verify the user's browser/network or real browser rendering.
+REST history and a real WebSocket candle were received successfully from this execution environment. The Binance catalog and live adapter are covered by unit and simulated-DOM tests, additionally covering the full dynamic catalog, quote filtering, pagination, Unicode pairs, non-USDT quote units, small-price precision, reconnect, pair switching, stale stream detection, polling fallback and unsubscribe cleanup. This does not verify the user's browser/network or real browser rendering.
+
+## Global markets and personal broker prices (1.3)
+
+Choose **Global markets / ตลาดโลก** for the embedded TradingView viewer: XAUUSD, XAGUSD, all seven FX majors (EURUSD, GBPUSD, USDJPY, USDCHF, USDCAD, AUDUSD, NZDUSD), GBPJPY and eight major index CFDs. A direct link `/?view=markets` opens the viewer. The selected data source is OANDA through TradingView, **not Axi**. Index symbols are CFD references, not exchange cash-index feeds. Data availability and delays are governed by the widget/provider; check the chart's own status. The widget retains TradingView attribution. It does not export or feed quotes/candles into Vela, backtests, alerts or paper trading.
+
+Choose **Broker / MCP** to connect the included `broker-bridge/` kit. Build output includes a downloadable ZIP and Thai setup guide. The gateway reads MT5 via MetaQuotes' Windows Python integration, or MT4 via the supplied WebRequest EA. Axi, Pepperstone, IC Markets and other MetaTrader accounts use this same terminal path, subject to account/platform availability. This is a custom NS integration; no native Axi MCP, broker API key, private API or broker login is supplied.
+
+- Run on the Windows computer / VPS with the broker terminal already logged in. MT5 needs `pip install MetaTrader5`. MT4 needs the supplied EA, the gateway URL in WebRequest settings, desired instruments in Market Watch, and the actual broker UTC offset. One EA services one gateway; MT4 history uses that fixed offset and needs care across DST transitions.
+- The website requires a gateway URL and a separate random 32+ character Bearer token. It reads the actual broker company name, exact symbol/suffix catalog, quote currency and tick size. The gateway reads the logged-in terminal; the website does not change its broker account. No broker password is sent to the website.
+- URLs must use HTTPS, except loopback HTTP. Gateway binds to loopback; VPS access needs the user's HTTPS reverse proxy/tunnel and explicit Host/Origin allowlists. Browser local-network restrictions can require HTTPS or running the app locally. There is no automatically opened public port.
+- Gateway credentials stay in memory only and are excluded from localStorage, backups and source. After reload, saved broker charts wait for a fresh connection; the app starts with clearly labeled samples and opens connection settings. Broker history is cleared when changing gateway connections. Separate broker processes/ports/tokens are needed for multiple terminals; this UI uses one connected gateway at a time.
+- Broker updates poll roughly every two seconds. `BROKER · LIVE` requires a valid candle response and an original tick timestamp no more than 30 seconds old. Receipt of an old tick never becomes LIVE merely because an HTTP request succeeded. Missing/stale data and errors remain explicit, without synthetic fallback.
+- The final broker candle can be forming and is excluded from current-bar research backtests. Backtests still model asset units/quote-currency P&L, not full CFD contracts, margin, spread, swap or leverage. Broker CFD paper orders are disabled. The existing manual risk calculator retains illustrative settings; verify contract and account-currency values before using it.
+
+The same gateway exposes four **read-only MCP tools**: `get_connection_status`, `list_symbols`, `get_quote`, `get_candles`. It supports both local stdio (`mcp_server.py`, newline-delimited JSON-RPC) and stateless Streamable HTTP JSON responses at `/mcp`, protected by the same Bearer token and Host/Origin checks. HTTP GET returns 405 because no SSE stream is offered. Example configs and the Thai guide explain clients supporting token-authenticated HTTP and VPS HTTPS. Connecting ChatGPT remote MCP additionally requires a reachable user-owned HTTPS endpoint, supported authentication (OAuth where required), and connection registration. Those user-side steps are not installed automatically. No trading, withdrawal or account-write tools/routes are implemented.
+
+Verified: **28 JavaScript tests and 8 Python tests**, including real Vela in a simulated DOM, exact-suffix selection, non-USD currency metadata, dynamic quote freshness, disconnect/cleanup, missing credentials on restore, widget structure/attribution, actual local HTTP auth/CORS/Host checks, MT4 request/response fixtures, MT5 UTC fixtures and full stdio/HTTP MCP initialize/list/call exchanges. The downloadable ZIP passes a standard ZIP integrity check. Fixtures are explicitly labeled and are not real broker quotes. **No actual Axi account, MT4 compiler or real browser rendering was available for end-to-end verification.**
+
+Setup: [broker-bridge/README-TH.md](broker-bridge/README-TH.md).
+
+Primary references:
+- Axi platforms: https://help.axi.com/en-US/axiv2--axicorp-prod/article/UXVsGgzY-what-trading-platforms-can-i-use-to-trade
+- Axi MT5: https://www.axi.com/th/trading-platforms/metatrader-5
+- MetaQuotes Python: https://www.mql5.com/en/docs/python_metatrader5
+- MQL4 WebRequest: https://docs.mql4.com/common/webrequest
+- TradingView widget data: https://www.tradingview.com/widget-docs/faq/data/
+- MCP transports: https://modelcontextprotocol.io/specification/2025-11-25/basic/transports
 
 ## Optional real AI through a local compatible server
 

@@ -33,7 +33,18 @@ test('real Vela workspace boots and host research, backtest, journal and paper c
  globalThis.WebSocket=FeedSocket;
  const pair=(symbol,baseAsset,quoteAsset)=>({symbol,baseAsset,quoteAsset,status:'TRADING',isSpotTradingAllowed:true,filters:[{filterType:'PRICE_FILTER',tickSize:quoteAsset==='BTC'?'0.00000001':'0.000001'}]});
  const catalog=[pair('BTCUSDT','BTC','USDT'),pair('ETHUSDT','ETH','USDT'),pair('SOLUSDT','SOL','USDT'),pair('ETHBTC','ETH','BTC'),pair('BTCTHB','BTC','THB'),pair('币安人生USDT','币安人生','USDT'),...Array.from({length:205},(_,i)=>pair('COIN'+String(i).padStart(3,'0')+'USDT','COIN'+String(i).padStart(3,'0'),'USDT'))];
- globalThis.fetch=async raw=>{const url=new URL(raw);assert.equal(url.origin,'https://data-api.binance.vision');if(url.pathname.endsWith('/exchangeInfo'))return {ok:true,status:200,json:async()=>({symbols:url.searchParams.has('symbol')?catalog.filter(m=>m.symbol===url.searchParams.get('symbol')):catalog})};assert.ok(url.pathname.endsWith('/klines'));const n=Number(url.searchParams.get('limit')||720),step=url.searchParams.get('interval')==='1m'?60000:900000,end=Number(url.searchParams.get('endTime')||Date.now()),start=Number(url.searchParams.get('startTime')||Math.floor(end/step)*step-(n-1)*step),base=url.searchParams.get('symbol')==='ETHBTC'?.000035:80000,rows=Array.from({length:Math.min(n,Math.floor((end-start)/step)+1)},(_,i)=>{const time=start+i*step,open=base*(1+Math.sin(time/1e7)*.001);return [time,open,open*1.001,open*.999,open*1.0001,100];});return {ok:true,status:200,json:async()=>rows};};
+ globalThis.fetch=async(raw,init={})=>{const url=new URL(raw);
+  if(url.origin==='http://127.0.0.1:8787'){
+   assert.equal(init.headers.Authorization,'Bearer fixture-dom-token-01234567890123456789');
+   const symbols=[{ticker:'XAUUSD.pro',description:'Fixture gold',type:'commodity',currency:'USD',tickSize:.01},{ticker:'XAGUSD',description:'Fixture silver',type:'commodity',currency:'USD',tickSize:.001},{ticker:'#US30.cash',description:'Fixture index',type:'index',currency:'USD',tickSize:.1},{ticker:'USDJPY.a',description:'Fixture yen',type:'forex',currency:'JPY',tickSize:.001}];
+   let body;
+   if(url.pathname==='/v1/status')body={protocol:'ns-market-bridge/1',readOnly:true,connected:true,broker:'Axi FIXTURE ONLY',platform:'MT5'};
+   else if(url.pathname==='/v1/symbols')body={symbols};
+   else if(url.pathname==='/v1/quote')body={symbol:url.searchParams.get('symbol'),bid:4501,ask:4501.2,time:Date.now()};
+   else if(url.pathname==='/v1/bars'){const n=Math.min(720,Number(url.searchParams.get('limit'))),at=Math.floor(Date.now()/900000)*900000;body={symbol:url.searchParams.get('symbol'),timeframe:url.searchParams.get('timeframe'),bars:Array.from({length:n},(_,i)=>({time:at-(n-1-i)*900000,open:4500,high:4502,low:4498,close:4501,volume:20}))};}
+   else throw new Error('Unexpected broker route');return {ok:true,status:200,json:async()=>body};
+  }
+  assert.equal(url.origin,'https://data-api.binance.vision');if(url.pathname.endsWith('/exchangeInfo'))return {ok:true,status:200,json:async()=>({symbols:url.searchParams.has('symbol')?catalog.filter(m=>m.symbol===url.searchParams.get('symbol')):catalog})};assert.ok(url.pathname.endsWith('/klines'));const n=Number(url.searchParams.get('limit')||720),step=url.searchParams.get('interval')==='1m'?60000:900000,end=Number(url.searchParams.get('endTime')||Date.now()),start=Number(url.searchParams.get('startTime')||Math.floor(end/step)*step-(n-1)*step),base=url.searchParams.get('symbol')==='ETHBTC'?.000035:80000,rows=Array.from({length:Math.min(n,Math.floor((end-start)/step)+1)},(_,i)=>{const time=start+i*step,open=base*(1+Math.sin(time/1e7)*.001);return [time,open,open*1.001,open*.999,open*1.0001,100];});return {ok:true,status:200,json:async()=>rows};};
  try{
   await import('../src/app.mjs');
   await waitFor(()=>globalThis.NSCapital);
@@ -79,6 +90,18 @@ test('real Vela workspace boots and host research, backtest, journal and paper c
   await waitFor(()=>workspace.chart.market.symbol.endsWith('ETHBTC')&&sockets.at(-1).url.includes('ethbtc'));
   sockets.at(-1).message('ETHBTC',.000035);await waitFor(()=>$('source-label').textContent.includes('LIVE'));assert.equal($('instrument-price').textContent,'0.00003500');assert.match($('paper-balance').textContent,/BTC$/);
   assert.ok(workspace.chart.data.symbols('binance').length>200);
+  $('global-markets-btn').click();assert.equal($('global-dialog').open,true);assert.equal($('global-symbol').options.length,18);assert.equal(JSON.parse($('global-chart').querySelector('script').textContent).symbol,'OANDA:XAUUSD');
+  $('global-category').value='majors';$('global-category').dispatchEvent(new w.Event('change'));assert.equal($('global-symbol').options.length,7);
+  $('global-category').value='indices';$('global-category').dispatchEvent(new w.Event('change'));assert.equal($('global-symbol').options.length,8);assert.equal(JSON.parse($('global-chart').querySelector('script').textContent).symbol,'OANDA:US30USD');
+  assert.equal(workspace.chart.market.symbol,'binance:ETHBTC');$('global-dialog').close();
+  $('broker-btn').click();assert.equal($('broker-dialog').open,true);$('broker-url').value='http://127.0.0.1:8787';$('broker-token').value='fixture-dom-token-01234567890123456789';$('broker-form').dispatchEvent(new w.Event('submit',{cancelable:true}));
+  await waitFor(()=>workspace.chart.market.symbol==='broker:XAUUSD.pro'&&$('source-label').textContent.includes('LIVE'));
+  assert.equal($('broker-controls').hidden,false);assert.equal($('broker-pair').options.length,4);assert.match($('broker-status').textContent,/Axi FIXTURE ONLY/);assert.equal($('broker-token').value,'');assert.equal($('paper-buy').disabled,true);assert.match($('instrument-price').textContent,/4,501/);assert.equal($('source-select').value,'broker');
+  $('broker-search').value='#US30';$('broker-search').dispatchEvent(new w.Event('input'));assert.equal($('broker-market-list').querySelectorAll('.broker-market').length,1);$('broker-market-list').querySelector('.broker-market').click();
+  await waitFor(()=>workspace.chart.market.symbol==='broker:#US30.cash'&&$('source-label').textContent.includes('LIVE'));
+  await globalThis.NSCapital.runBacktest();assert.match($('result-source').textContent,/BROKER/);
+  await new Promise(r=>setTimeout(r,250));assert.ok(![...Array(localStorage.length)].map((_,i)=>localStorage.getItem(localStorage.key(i))).join('').includes('fixture-dom-token'));
+  $('broker-disconnect').click();await waitFor(()=>workspace.chart.market.symbol==='sample:XAUUSD'&&$('broker-status').textContent.match(/Not connected|ยังไม่ได้/));assert.equal($('broker-controls').hidden,true);
   assert.equal(errors.length,0,errors.join('\n'));
  }finally{workspace?.destroy();for(const id of timers)clearInterval(id);globalThis.setInterval=originalInterval;globalThis.fetch=originalFetch;globalThis.WebSocket=originalWebSocket;console.error=originalError;if(errors.length)originalError(errors);w.close();}
 });

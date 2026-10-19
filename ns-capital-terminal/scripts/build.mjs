@@ -1,11 +1,15 @@
 import {mkdir,cp,copyFile,rm,readFile,readdir,writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {build} from 'esbuild';
+import {zipFolder} from './zip.mjs';
 const root=process.cwd();
 const pkg=JSON.parse(await readFile(resolve(root,'node_modules/@luxalgo/vela/package.json'),'utf8'));
 if(pkg.version!=='0.8.4')throw new Error('Unexpected Vela version');
 await rm(resolve(root,'dist'),{recursive:true,force:true});
 await mkdir(resolve(root,'dist/vendor'),{recursive:true});
+await mkdir(resolve(root,'dist/downloads'),{recursive:true});
+await zipFolder(resolve(root,'broker-bridge'),resolve(root,'dist/downloads/NS-Capital-Broker-Bridge.zip'));
+await copyFile(resolve(root,'broker-bridge/README-TH.md'),resolve(root,'dist/downloads/README-TH.md'));
 await cp(resolve(root,'src'),resolve(root,'dist'),{recursive:true});
 await build({entryPoints:[resolve(root,'src/app.mjs')],outfile:resolve(root,'dist/app.mjs'),bundle:true,format:'esm',platform:'browser',target:'es2022',minify:true,legalComments:'linked'});
 await copyFile(resolve(root,'node_modules/@luxalgo/vela/LICENSE'),resolve(root,'dist/vendor/VELA-LICENSE.txt'));
