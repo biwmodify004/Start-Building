@@ -1,5 +1,5 @@
 #property strict
-#property version "1.00"
+#property version "1.10"
 #property description "NS Capital read-only price bridge. No trading commands."
 
 input string BridgeURL="http://127.0.0.1:8787";
@@ -27,7 +27,7 @@ int Request(string method,string path,string body,string &answer){
  if(code<200||code>=300)Print("NS Market Bridge HTTP ",code," / MQL error ",GetLastError(),". Check bridge token, WebRequest allowed URL and gateway.");
  return code;
 }
-string Header(){return "\"broker\":"+J(AccountCompany())+",\"connected\":"+(IsConnected()?"true":"false");}
+string Header(){return "\"broker\":"+J(AccountCompany())+",\"connected\":"+(IsConnected()?"true":"false")+",\"account\":{\"id\":"+J(IntegerToString(AccountNumber()))+",\"server\":"+J(AccountServer())+",\"currency\":"+J(AccountCurrency())+",\"mode\":"+J(IsDemo()?"demo":"real")+",\"balance\":"+N(AccountBalance())+",\"equity\":"+N(AccountEquity())+",\"freeMargin\":"+N(AccountFreeMargin())+"}";}
 void Heartbeat(bool includeCatalog){
  string body="{"+Header();
  if(includeCatalog){

@@ -25,7 +25,7 @@ test('real Vela workspace boots and host research, backtest, journal and paper c
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  const timers=[],originalInterval=globalThis.setInterval;globalThis.setInterval=(...args)=>{const id=originalInterval(...args);id.unref?.();timers.push(id);return id;};
  const errors=[],originalError=console.error;console.error=(...args)=>errors.push(args.map(String).join(' '));
- const waitFor=async(predicate)=>{const end=Date.now()+7000;while(!predicate()){if(Date.now()>end)throw new Error('Integration timed out. '+errors.join('\n')+' '+w.document.getElementById('market-notice').textContent);await new Promise(r=>setTimeout(r,15));}};
+ const waitFor=async(predicate)=>{const end=Date.now()+7000;while(!predicate()){if(Date.now()>end)throw new Error('Integration timed out. '+errors.join('\n')+' '+w.document.getElementById('market-notice').textContent+' '+w.document.getElementById('broker-error').textContent+' '+w.document.getElementById('broker-status').textContent+' '+globalThis.NSCapital?.getWorkspace().chart.market.symbol);await new Promise(r=>setTimeout(r,15));}};
  const $=id=>w.document.getElementById(id);
  let workspace;
  const originalFetch=globalThis.fetch,originalWebSocket=globalThis.WebSocket,sockets=[];
@@ -34,14 +34,14 @@ test('real Vela workspace boots and host research, backtest, journal and paper c
  const pair=(symbol,baseAsset,quoteAsset)=>({symbol,baseAsset,quoteAsset,status:'TRADING',isSpotTradingAllowed:true,filters:[{filterType:'PRICE_FILTER',tickSize:quoteAsset==='BTC'?'0.00000001':'0.000001'}]});
  const catalog=[pair('BTCUSDT','BTC','USDT'),pair('ETHUSDT','ETH','USDT'),pair('SOLUSDT','SOL','USDT'),pair('ETHBTC','ETH','BTC'),pair('BTCTHB','BTC','THB'),pair('币安人生USDT','币安人生','USDT'),...Array.from({length:205},(_,i)=>pair('COIN'+String(i).padStart(3,'0')+'USDT','COIN'+String(i).padStart(3,'0'),'USDT'))];
  globalThis.fetch=async(raw,init={})=>{const url=new URL(raw);
-  if(url.origin==='http://127.0.0.1:8787'){
-   assert.equal(init.headers.Authorization,'Bearer fixture-dom-token-01234567890123456789');
-   const symbols=[{ticker:'XAUUSD.pro',description:'Fixture gold',type:'commodity',currency:'USD',tickSize:.01},{ticker:'XAGUSD',description:'Fixture silver',type:'commodity',currency:'USD',tickSize:.001},{ticker:'#US30.cash',description:'Fixture index',type:'index',currency:'USD',tickSize:.1},{ticker:'USDJPY.a',description:'Fixture yen',type:'forex',currency:'JPY',tickSize:.001}];
+  if(['http://127.0.0.1:8787','http://127.0.0.1:8788'].includes(url.origin)){const futures=url.port==='8788';
+   assert.equal(init.headers.Authorization,'Bearer fixture-dom-token-01234567890123456789'+(futures?'F':''));
+   const symbols=[{ticker:'XAUUSD.pro',description:'Fixture gold',type:'commodity',currency:'USD',tickSize:.01,assetClass:'cfd'},{ticker:'XAGUSD',description:'Fixture silver',type:'commodity',currency:'USD',tickSize:.001,assetClass:'cfd'},{ticker:'#US30.cash',description:'Fixture index',type:'index',currency:'USD',tickSize:.1,assetClass:'cfd'},{ticker:'USDJPY.a',description:'Fixture yen',type:'forex',currency:'JPY',tickSize:.001,assetClass:'cfd'}];if(futures)symbols.push({ticker:'ESZ6',description:'Fixture exchange futures',type:'futures',currency:'USD',tickSize:.25,assetClass:'futures',expiry:Date.UTC(2026,11,18)});
    let body;
-   if(url.pathname==='/v1/status')body={protocol:'ns-market-bridge/1',readOnly:true,connected:true,broker:'Axi FIXTURE ONLY',platform:'MT5'};
+   if(url.pathname==='/v1/status')body={protocol:'ns-market-bridge/1',readOnly:true,connected:true,broker:futures?'FUTURES FIXTURE ONLY':'Axi FIXTURE ONLY',platform:'MT5',account:{id:futures?'87654321':'12345678',server:futures?'Futures-Fixture':'CFD-Fixture',currency:'USD',mode:'demo',balance:futures?20000:10000,equity:futures?20001:10001}};
    else if(url.pathname==='/v1/symbols')body={symbols};
-   else if(url.pathname==='/v1/quote')body={symbol:url.searchParams.get('symbol'),bid:4501,ask:4501.2,time:Date.now()};
-   else if(url.pathname==='/v1/bars'){const n=Math.min(720,Number(url.searchParams.get('limit'))),at=Math.floor(Date.now()/900000)*900000;body={symbol:url.searchParams.get('symbol'),timeframe:url.searchParams.get('timeframe'),bars:Array.from({length:n},(_,i)=>({time:at-(n-1-i)*900000,open:4500,high:4502,low:4498,close:4501,volume:20}))};}
+   else if(url.pathname==='/v1/quote')body={symbol:url.searchParams.get('symbol'),bid:futures?9001:4501,ask:futures?9001.2:4501.2,time:Date.now()};
+   else if(url.pathname==='/v1/bars'){const n=Math.min(720,Number(url.searchParams.get('limit'))),at=Math.floor(Date.now()/900000)*900000;body={symbol:url.searchParams.get('symbol'),timeframe:url.searchParams.get('timeframe'),bars:Array.from({length:n},(_,i)=>({time:at-(n-1-i)*900000,open:futures?9000:4500,high:futures?9002:4502,low:futures?8998:4498,close:futures?9001:4501,volume:20}))};}
    else throw new Error('Unexpected broker route');return {ok:true,status:200,json:async()=>body};
   }
   assert.equal(url.origin,'https://data-api.binance.vision');if(url.pathname.endsWith('/exchangeInfo'))return {ok:true,status:200,json:async()=>({symbols:url.searchParams.has('symbol')?catalog.filter(m=>m.symbol===url.searchParams.get('symbol')):catalog})};assert.ok(url.pathname.endsWith('/klines'));const n=Number(url.searchParams.get('limit')||720),step=url.searchParams.get('interval')==='1m'?60000:900000,end=Number(url.searchParams.get('endTime')||Date.now()),start=Number(url.searchParams.get('startTime')||Math.floor(end/step)*step-(n-1)*step),base=url.searchParams.get('symbol')==='ETHBTC'?.000035:80000,rows=Array.from({length:Math.min(n,Math.floor((end-start)/step)+1)},(_,i)=>{const time=start+i*step,open=base*(1+Math.sin(time/1e7)*.001);return [time,open,open*1.001,open*.999,open*1.0001,100];});return {ok:true,status:200,json:async()=>rows};};
@@ -49,20 +49,22 @@ test('real Vela workspace boots and host research, backtest, journal and paper c
   await import('../src/app.mjs');
   await waitFor(()=>globalThis.NSCapital);
   workspace=globalThis.NSCapital.getWorkspace();
-  assert.ok(workspace.chart.market.symbol.endsWith('XAUUSD'));
+  assert.equal(workspace.chart.market.symbol,'binance:BTCUSDT');assert.ok(!workspace.chart.data.providers().some(p=>p.name==='sample'));assert.ok(!w.document.querySelector('[data-symbol^="sample:"]'));assert.ok(w.document.body.classList.contains('no-left'));assert.ok($('analysis-panel').classList.contains('collapsed'));assert.equal(workspace.chart.renderer.getConfig().layout.background,'#131722');assert.equal(workspace.chart.renderer.getConfig().candles.upColor,'#089981');
   assert.equal(workspace.chart.indicators().filter(h=>h.nativeType==='ema').length,3);
   await waitFor(()=>Number($('trade-count').textContent)>0);
   assert.notEqual($('instrument-price').textContent,'—');
-  assert.match($('source-label').textContent,/SAMPLE/);
+  assert.match($('source-label').textContent,/BINANCE/);sockets.at(-1).message('BTCUSDT',83000);await waitFor(()=>$('source-label').textContent.includes('LIVE'));
+  $('watch-search').value='BTC';$('watch-search').dispatchEvent(new w.Event('input'));assert.equal($('watchlist').querySelectorAll('[data-symbol]').length,1);$('watch-search').value='NO_SUCH_PAIR';$('watch-search').dispatchEvent(new w.Event('input'));assert.equal($('watchlist').querySelectorAll('[data-symbol]').length,0);$('watch-search').value='';$('watch-search').dispatchEvent(new w.Event('input'));
+  $('market-tab-risk').click();assert.equal($('market-risk-pane').hidden,false);assert.equal($('market-watch-pane').hidden,true);$('market-tab-risk').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));assert.equal($('market-tab-paper').getAttribute('aria-selected'),'true');assert.equal($('market-paper-pane').hidden,false);$('market-tab-watchlist').click();
   $('prompt').value='Mean Reversion BB risk 0.3% RR 1:2';$('prompt-form').dispatchEvent(new w.Event('submit',{cancelable:true}));
   assert.equal(globalThis.NSCapital.getConfig().kind,'mean');
   assert.equal(globalThis.NSCapital.getConfig().risk,.3);
   assert.ok(workspace.chart.indicators().some(h=>h.nativeType==='bollinger-bands'));
   await globalThis.NSCapital.runBacktest();assert.match($('results-title').textContent,/Bollinger/);
-  $('theme-btn').click();assert.ok(w.document.body.classList.contains('light'));
+  const indicatorIds=workspace.chart.indicators().map(h=>h.id);$('theme-btn').click();assert.ok(w.document.body.classList.contains('light'));assert.equal(workspace.chart.renderer.getConfig().layout.background,'#ffffff');assert.deepEqual(workspace.chart.indicators().map(h=>h.id),indicatorIds);
   $('journal-input').value='<script>unsafe()</script> research note';$('journal-form').dispatchEvent(new w.Event('submit',{cancelable:true}));assert.equal($('journal-entries').querySelectorAll('script').length,0);assert.match($('journal-entries').textContent,/research note/);
-  $('paper-buy').click();assert.match($('position-rows').textContent,/BUY/);$('position-rows').querySelector('[data-close-position]').click();assert.match($('position-rows').textContent,/No open positions/);
-  const eur=w.document.querySelector('[data-symbol="sample:EURUSD"]');eur.click();await waitFor(()=>workspace.chart.market.symbol.endsWith('EURUSD')&&$('instrument-symbol').textContent==='EURUSD');assert.notEqual($('instrument-price').textContent,'—');
+  $('market-tab-paper').click();$('paper-buy').click();assert.match($('position-rows').textContent,/BUY/);$('position-rows').querySelector('[data-close-position]').click();assert.match($('position-rows').textContent,/No open positions/);
+  $('market-tab-watchlist').click();
   const scene=workspace.chart.inspect();assert.ok(scene.indicators.length>=3);
   const bounds=workspace.chart.replay.bounds;
   await workspace.chart.replay.start({from:bounds.first+(bounds.last-bounds.first)*.7});
@@ -73,7 +75,7 @@ test('real Vela workspace boots and host research, backtest, journal and paper c
   workspace.setLayout('1');assert.equal(workspace.cells().length,1);
   $('source-select').value='binance';$('source-select').dispatchEvent(new w.Event('change'));
   await waitFor(()=>workspace.chart.market.symbol.endsWith('BTCUSDT')&&sockets.length>0);
-  assert.equal($('crypto-controls').hidden,false);assert.equal($('paper-buy').disabled,true);
+  assert.equal($('crypto-controls').hidden,false);
   sockets.at(-1).message('BTCUSDT',83000);await waitFor(()=>$('source-label').textContent.includes('LIVE'));assert.match($('instrument-price').textContent,/83,000/);assert.equal($('paper-buy').disabled,false);
   const count=sockets.length;$('crypto-reconnect').click();await waitFor(()=>sockets.length>count);assert.equal(sockets[0].closed,true);
   sockets.at(-1).message('BTCUSDT',83001);await waitFor(()=>$('source-label').textContent.includes('LIVE'));
@@ -94,14 +96,19 @@ test('real Vela workspace boots and host research, backtest, journal and paper c
   $('global-category').value='majors';$('global-category').dispatchEvent(new w.Event('change'));assert.equal($('global-symbol').options.length,7);
   $('global-category').value='indices';$('global-category').dispatchEvent(new w.Event('change'));assert.equal($('global-symbol').options.length,8);assert.equal(JSON.parse($('global-chart').querySelector('script').textContent).symbol,'OANDA:US30USD');
   assert.equal(workspace.chart.market.symbol,'binance:ETHBTC');$('global-dialog').close();
-  $('broker-btn').click();assert.equal($('broker-dialog').open,true);$('broker-url').value='http://127.0.0.1:8787';$('broker-token').value='fixture-dom-token-01234567890123456789';$('broker-form').dispatchEvent(new w.Event('submit',{cancelable:true}));
-  await waitFor(()=>workspace.chart.market.symbol==='broker:XAUUSD.pro'&&$('source-label').textContent.includes('LIVE'));
-  assert.equal($('broker-controls').hidden,false);assert.equal($('broker-pair').options.length,4);assert.match($('broker-status').textContent,/Axi FIXTURE ONLY/);assert.equal($('broker-token').value,'');assert.equal($('paper-buy').disabled,true);assert.match($('instrument-price').textContent,/4,501/);assert.equal($('source-select').value,'broker');
+  $('broker-btn').click();assert.equal($('broker-dialog').open,true);$('account-label').value='My CFD account';$('account-kind').value='cfd';$('broker-url').value='http://127.0.0.1:8787';$('broker-token').value='fixture-dom-token-01234567890123456789';$('broker-form').dispatchEvent(new w.Event('submit',{cancelable:true}));
+  await waitFor(()=>/^broker_/.test(workspace.chart.market.symbol)&&workspace.chart.market.symbol.endsWith(':XAUUSD.pro')&&$('source-label').textContent.includes('LIVE'));
+  assert.equal($('broker-controls').hidden,false);assert.equal($('account-list').querySelectorAll('.account-row').length,1);assert.match($('account-summary').textContent,/10,001 USD/);assert.equal($('broker-pair').options.length,4);assert.match($('broker-status').textContent,/Axi FIXTURE ONLY/);assert.equal($('broker-token').value,'');assert.equal($('paper-buy').disabled,true);assert.match($('instrument-price').textContent,/4,501/);assert.equal($('source-select').value,'broker');
   $('broker-search').value='#US30';$('broker-search').dispatchEvent(new w.Event('input'));assert.equal($('broker-market-list').querySelectorAll('.broker-market').length,1);$('broker-market-list').querySelector('.broker-market').click();
-  await waitFor(()=>workspace.chart.market.symbol==='broker:#US30.cash'&&$('source-label').textContent.includes('LIVE'));
+  await waitFor(()=>workspace.chart.market.symbol.endsWith(':#US30.cash')&&$('source-label').textContent.includes('LIVE'));
   await globalThis.NSCapital.runBacktest();assert.match($('result-source').textContent,/BROKER/);
   await new Promise(r=>setTimeout(r,250));assert.ok(![...Array(localStorage.length)].map((_,i)=>localStorage.getItem(localStorage.key(i))).join('').includes('fixture-dom-token'));
-  $('broker-disconnect').click();await waitFor(()=>workspace.chart.market.symbol==='sample:XAUUSD'&&$('broker-status').textContent.match(/Not connected|ยังไม่ได้/));assert.equal($('broker-controls').hidden,true);
+  const cfdPrefix=workspace.chart.market.symbol.split(':')[0];
+  $('account-new').click();$('account-label').value='My Futures account';$('account-kind').value='futures';$('broker-url').value='http://127.0.0.1:8788';$('broker-token').value='fixture-dom-token-01234567890123456789F';$('broker-form').dispatchEvent(new w.Event('submit',{cancelable:true}));
+  await waitFor(()=>workspace.chart.market.symbol.endsWith(':ESZ6')&&$('source-label').textContent.includes('LIVE')&&!$('broker-connect').disabled);assert.equal($('account-list').querySelectorAll('.account-row').length,2);assert.notEqual(workspace.chart.market.symbol.split(':')[0],cfdPrefix);assert.match($('broker-market-list').textContent,/ESZ6/);assert.ok(!$('broker-market-list').textContent.includes('XAUUSD.pro'));assert.match($('account-summary').textContent,/20,001 USD/);
+  $('broker-pair').value='XAUUSD.pro';$('broker-pair').dispatchEvent(new w.Event('change'));await waitFor(()=>workspace.chart.market.symbol.endsWith(':XAUUSD.pro')&&$('instrument-price').textContent.includes('9,001'));
+  $('account-list').querySelector('.account-row:not(.active) .account-activate').click();await waitFor(()=>workspace.chart.market.symbol===cfdPrefix+':XAUUSD.pro'&&$('source-label').textContent.includes('LIVE')&&!$('broker-connect').disabled);assert.match($('instrument-price').textContent,/4,501/);assert.ok(!$('watchlist').querySelector('[data-symbol$=":ESZ6"]'));
+  $('broker-disconnect').click();await waitFor(()=>workspace.chart.market.symbol==='binance:BTCUSDT'&&$('broker-status').textContent.match(/Not connected|ยังไม่ได้/));assert.equal($('broker-controls').hidden,true);$('broker-dialog').close();w.document.activeElement?.blur();
   const retainedChart=workspace.chart,retainedSymbol=workspace.chart.market.symbol,retainedIndicators=workspace.chart.indicators().map(h=>h.id);
   w.innerWidth=390;w.innerHeight=844;w.dispatchEvent(new w.Event('resize'));assert.equal(w.document.documentElement.dataset.viewport,'phone');assert.ok($('analysis-panel').classList.contains('collapsed'));
   w.document.querySelector('[data-compact-view=more]').click();w.document.querySelector('[data-menu-target=nav-journal-btn]').click();assert.equal($('compact-menu').open,false);assert.equal($('tab-journal').hidden,false);assert.ok(!$('analysis-panel').classList.contains('collapsed'));

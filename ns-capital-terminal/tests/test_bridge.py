@@ -27,7 +27,7 @@ class Fixture:
     def __init__(self):
         self.connected = True
     def status(self):
-        return {"protocol": PROTOCOL, "readOnly": True, "connected": self.connected, "broker": "FIXTURE ONLY", "platform": "MT5"}
+        return {"protocol": PROTOCOL, "readOnly": True, "connected": self.connected, "broker": "FIXTURE ONLY", "platform": "MT5", "account": {"id":"12345678", "server":"Fixture-Server", "currency":"USD", "balance":10000, "equity":10001}}
     def symbols(self):
         return [{"ticker": "XAUUSD.pro", "description": "Fixture Gold", "currency": "USD", "tickSize": .01}]
     def bars(self, symbol, frame, limit, start=None, end=None):
@@ -88,6 +88,11 @@ class BridgeHTTPTests(unittest.TestCase):
             self.assertEqual(self.request("GET", "/v1/bars?symbol=XAUUSD.pro")[0], 503)
         finally:
             self.source.connected = True
+    def test_market_reads_are_bound_to_the_verified_account(self):
+        self.assertEqual(self.request("GET", "/v1/bars?symbol=XAUUSD.pro&accountKey=Wrong%7C12345678")[0], 409)
+        self.assertEqual(self.request("GET", "/v1/quote?symbol=XAUUSD.pro&accountKey=Fixture-Server%7C12345678")[0], 200)
+        self.assertEqual(self.request("GET", "/v1/quote?symbol=XAUUSD.pro&accountKey=Fixture-Server%7C99999999")[0], 409)
+
     def test_mcp_stdio_initialization_and_read_only_tool_calls_over_real_http(self):
         env = {**os.environ, "NS_BRIDGE_URL": f"http://127.0.0.1:{self.port}", "NS_BRIDGE_TOKEN": TOKEN}
         messages = [
@@ -155,6 +160,16 @@ class MT4Tests(unittest.TestCase):
         original=source.quote('GOLD.a')['time']
         source.publish({'quotes':[{'symbol':'GOLD.a','bid':4500,'ask':4500.2,'time':original-1000}]})
         self.assertEqual(source.quote('GOLD.a')['time'],original)
+    def test_switching_mt4_accounts_discards_all_previous_quotes_and_catalog(self):
+        source = MT4Source()
+        source.publish({"broker":"Fixture", "connected":True, "account":{"id":"1", "server":"Fixture", "currency":"USD", "mode":"demo", "balance":1000}, "symbols":[{"ticker":"GOLD.a", "currency":"USD", "tickSize":.01}], "quotes":[{"symbol":"GOLD.a", "bid":4500, "ask":4501, "time":NOW()}]})
+        self.assertEqual(source.status()["account"]["id"], "1")
+        self.assertTrue(source.quotes)
+        source.publish({"connected":True, "account":{"id":"2", "server":"Fixture", "currency":"USD"}})
+        self.assertEqual(source.symbols(), [])
+        self.assertEqual(source.quotes, {})
+        self.assertEqual(source.status()["account"]["id"], "2")
+
     def test_invalid_future_data_does_not_mutate_catalog_or_quotes(self):
         source=MT4Source(wait_seconds=.01)
         with self.assertRaises(ValueError):
@@ -175,6 +190,17 @@ class MT5Tests(unittest.TestCase):
         self.assertEqual(selected[-1],('XAUUSD.pro',True))
         self.assertEqual(source.quote('XAUUSD.pro')['symbol'],'XAUUSD.pro')
         self.assertFalse(hasattr(module,'order_send'))
+
+    def test_mt5_exposes_actual_account_and_futures_contract_metadata(self):
+        def symbol(name, calc_mode):
+            return SimpleNamespace(name=name, trade_calc_mode=calc_mode, path="Exchange/Futures" if calc_mode==33 else "CFD/Indices", description=name, trade_tick_size=.25, point=.01, currency_profit="USD", currency_base="", trade_mode=4, trade_tick_value=12.5, volume_step=1, trade_contract_size=50, expiration_time=1797552000, exchange="Fixture Exchange")
+        module=SimpleNamespace(initialize=lambda:True,terminal_info=lambda:SimpleNamespace(connected=True),account_info=lambda:SimpleNamespace(login=12345678,server="Fixture-Server",company="Fixture",currency="USD",trade_mode=0,balance=10000,equity=10001,margin_free=9500),symbols_get=lambda:[symbol("ESZ6",33),symbol("US30.cash",3)])
+        source=MT5Source(module=module)
+        self.assertEqual(source.status()["account"]["server"], "Fixture-Server")
+        self.assertEqual(source.status()["account"]["equity"],10001)
+        self.assertEqual(source.symbols()[0]["assetClass"],"futures")
+        self.assertEqual(source.symbols()[1]["assetClass"],"cfd")
+        self.assertEqual(source.symbols()[0]["expiry"],1797552000000)
 
 if __name__=='__main__':
     unittest.main()

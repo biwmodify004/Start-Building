@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+ <symbol id="chart" viewBox="0 0 24 24"><path d="M5 3v18M3 7h4v7H3zM12 3v18M10 10h4v8h-4zM19 3v18M17 5h4v7h-4z"/></symbol>
+ <symbol id="research" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></symbol>
+ <symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></symbol>
+ <symbol id="search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+ <symbol id="link" viewBox="0 0 24 24"><path d="m10 13 4-4m-6 7-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 1 1-1a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0" transform="translate(1 0)"/></symbol>
+ <symbol id="upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/></symbol>
+ <symbol id="download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 16v4h16v-4"/></symbol>
+ <symbol id="theme" viewBox="0 0 24 24"><path d="M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14Z"/></symbol>
+ <symbol id="help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .6-1.5 1-1.5 2.5m0 3v.1"/></symbol>
+ <symbol id="watchlist" viewBox="0 0 24 24"><path d="M8 5h13M8 12h13M8 19h13M3 5h.1M3 12h.1M3 19h.1"/></symbol>
+ <symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+ <symbol id="plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+ <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+ <symbol id="bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8 12h4"/></symbol>
+ <symbol id="focus" viewBox="0 0 24 24"><path d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5"/></symbol>
+ <symbol id="journal" viewBox="0 0 24 24"><path d="M5 3h15v18H5zM3 7h4m-4 5h4m-4 5h4m4-10h5m-5 5h5"/></symbol>
+ <symbol id="code" viewBox="0 0 24 24"><path d="m8 6-6 6 6 6m8-12 6 6-6 6M14 3l-4 18"/></symbol>
+ <symbol id="calculator" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h1m6 0h1M8 15h1m6 0h1M8 19h1m6 0h1"/></symbol>
+ <symbol id="paper" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v5h4M9 12h7m-7 4h7"/></symbol>
+ <symbol id="play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8V4Z"/></symbol>
+ <symbol id="arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+ <symbol id="refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5m10-4A8 8 0 0 0 5 6m0 10a8 8 0 0 0 14 2"/></symbol>
+</svg>

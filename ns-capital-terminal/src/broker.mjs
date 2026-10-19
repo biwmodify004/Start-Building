@@ -1,11 +1,14 @@
 import {validateBars,timeframeMs} from './engine.mjs';
 
 export const BRIDGE_PROTOCOL='ns-market-bridge/1';
-export function pauseBrokerSnapshot(raw){
+export function pauseBrokerSnapshot(raw,imports={}){
  if(!raw)return{raw,resume:false};
- try{const doc=JSON.parse(raw);let resume=false;
-  if(Array.isArray(doc?.charts))for(const chart of doc.charts)if(chart&&typeof chart==='object'&&(chart.provider==='broker'||String(chart.symbol).startsWith('broker:'))){chart.symbol='sample:XAUUSD';chart.provider='sample';chart.timeframe='15';chart.drawings={version:1,drawings:[]};resume=true;}
-  return{raw:resume?JSON.stringify(doc):raw,resume};
+ try{const doc=JSON.parse(raw);let resume=false,changed=false;
+  if(Array.isArray(doc?.charts))for(const chart of doc.charts)if(chart&&typeof chart==='object'){
+   const prefix=String(chart.symbol).split(':')[0].toLowerCase(),broker=chart.provider==='broker'||prefix==='broker'||prefix.startsWith('broker_'),synthetic=chart.provider==='sample'||prefix==='sample';
+   if(broker||synthetic){const ticker=String(chart.symbol).split(':').at(-1),csv=synthetic&&imports[ticker];chart.symbol=csv?'csv:'+ticker:'binance:BTCUSDT';chart.provider=csv?'csv':'binance';if(!csv)chart.timeframe='15';chart.drawings={version:1,drawings:[]};resume||=broker;changed=true;}
+  }
+  return{raw:changed?JSON.stringify(doc):raw,resume};
  }catch{return{raw,resume:false};}
 }
 export function bridgeURL(value){
@@ -26,20 +29,21 @@ export class BrokerMarketProvider{
  report(symbol,tf,next){const status={...this.status(symbol,tf),symbol,timeframe:tf,...next};this.statuses.set(this.key(symbol,tf),status);this.onStatus(status);return status;}
  async request(path,params={},signal){
   if(!this.url||!this.token)throw new Error('Connect your broker bridge first');
-  const url=new URL(this.url+path);for(const [k,v]of Object.entries(params))if(v!=null)url.searchParams.set(k,String(v));
+  if(this.accountIdentity&&['/v1/bars','/v1/quote'].includes(path))params={...params,accountKey:this.accountIdentity};const url=new URL(this.url+path);for(const [k,v]of Object.entries(params))if(v!=null)url.searchParams.set(k,String(v));
   const response=await this.fetchImpl(url.href,{headers:{Authorization:'Bearer '+this.token},credentials:'omit',cache:'no-store',redirect:'error',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000)});
   let data;try{data=await response.json();}catch{throw new Error('Bridge returned an invalid response');}
   if(!response.ok)throw new Error(data.error||'Broker bridge HTTP '+response.status);return data;
  }
- async connect({url,token}){
+ async connect({url,token,expectedAccount}){
   this.disconnect();const endpoint=bridgeURL(url),credential=String(token).trim();if(credential.length<32||!/^[!-~]+$/.test(credential))throw new Error('Bridge token must contain at least 32 printable ASCII characters');this.url=endpoint;this.token=credential;
   const generation=this.generation;
-  try{const status=await this.request('/v1/status');if(generation!==this.generation)throw new Error('Connection cancelled');if(status.protocol!==BRIDGE_PROTOCOL||status.readOnly!==true)throw new Error('This endpoint is not an NS read-only market bridge');if(!status.connected)throw new Error(status.error||'Terminal is not connected. Log in to MT4 / MT5 first');this.connection=status;await this.listSymbols();if(!this.catalog.length)throw new Error('No broker symbols are available. Open Market Watch / check the terminal');return status;}catch(error){if(generation===this.generation)this.disconnect();throw error;}
+  try{const status=await this.request('/v1/status');if(generation!==this.generation)throw new Error('Connection cancelled');if(status.protocol!==BRIDGE_PROTOCOL||status.readOnly!==true)throw new Error('This endpoint is not an NS read-only market bridge');if(!status.connected)throw new Error(status.error||'Terminal is not connected. Log in to MT4 / MT5 first');if(expectedAccount&&this.connectionKey(status)!==expectedAccount)throw new Error('The terminal account has changed. Add it as a new account');this.connection=status;this.accountIdentity=this.connectionKey(status);await this.listSymbols();if(!this.catalog.length)throw new Error('No broker symbols are available. Open Market Watch / check the terminal');return status;}catch(error){if(generation===this.generation)this.disconnect();throw error;}
  }
+ connectionKey(status){return status?.account?.id&&status?.account?.server?String(status.account.server)+'|'+String(status.account.id):null;}
  async listSymbols(){
   const generation=this.generation,data=await this.request('/v1/symbols');if(generation!==this.generation)throw new Error('Connection cancelled');
   if(!Array.isArray(data.symbols))throw new Error('Broker symbol catalog is invalid');
-  const seen=new Map();for(const m of data.symbols){try{const ticker=brokerSymbol(m.ticker),tickSize=Number(m.tickSize);if(!(tickSize>0)||typeof m.currency!=='string'||!m.currency)continue;seen.set(ticker,{...m,ticker,tickSize,description:String(m.description||ticker),type:['forex','commodity','index','crypto','stock'].includes(m.type)?m.type:'custom',currency:String(m.currency)});}catch{}}
+  const seen=new Map();for(const m of data.symbols){try{const ticker=brokerSymbol(m.ticker),tickSize=Number(m.tickSize);if(!(tickSize>0)||typeof m.currency!=='string'||!m.currency)continue;seen.set(ticker,{...m,ticker,tickSize,description:String(m.description||ticker),type:['forex','commodity','index','crypto','stock','futures'].includes(m.type)?m.type:'custom',currency:String(m.currency)});}catch{}}
   this.catalog=[...seen.values()].sort((a,b)=>a.ticker.localeCompare(b.ticker));return this.catalog;
  }
  async getSymbolInfo(symbol){symbol=brokerSymbol(symbol);let market=this.market(symbol);if(!market){await this.listSymbols();market=this.market(symbol);}if(!market)throw new Error('Symbol is not available in this broker terminal: '+symbol);return{ticker:symbol,description:market.description,type:market.type,timezone:'Etc/UTC',currency:market.currency,mintick:market.tickSize};}
@@ -53,7 +57,7 @@ export class BrokerMarketProvider{
   symbol=brokerSymbol(symbol);brokerFrame(tf);const generation=this.generation;let stopped=false,timer=null,controller=null,lastBarTime=-Infinity;
   const session={key:this.key(symbol,tf),stop:()=>{if(stopped)return;stopped=true;this.cancel(timer);controller?.abort();this.sessions.delete(session);}};this.sessions.add(session);
   const poll=async()=>{if(stopped)return;controller=new AbortController();try{
-   const bars=await this.fetchBars(symbol,tf,{limit:3},controller.signal),quote=await this.request('/v1/quote',{symbol},controller.signal);if(stopped||generation!==this.generation)return;
+   const connection=await this.request('/v1/status',{},controller.signal);if(!connection.connected||this.connectionKey(connection)!==this.accountIdentity)throw new Error('Trading account changed or disconnected. Reconnect the account');const bars=await this.fetchBars(symbol,tf,{limit:3},controller.signal),quote=await this.request('/v1/quote',{symbol},controller.signal);if(stopped||generation!==this.generation)return;
    const tickAt=Number(quote.time),bid=Number(quote.bid),ask=Number(quote.ask),age=this.now()-tickAt;
    if(quote.symbol!==symbol||!Number.isFinite(tickAt)||!(bid>0)||!(ask>=bid)||age< -5000)throw new Error('Invalid broker quote');
    if(!bars.length)throw new Error('No broker candles received');
@@ -63,6 +67,6 @@ export class BrokerMarketProvider{
   this.report(symbol,tf,{type:'connecting',error:null});poll();return session.stop;
  }
  stop(symbol,tf){const key=this.key(symbol,tf);for(const session of [...this.sessions])if(session.key===key)session.stop();}
- disconnect(){this.generation++;for(const session of [...this.sessions])session.stop();this.statuses.clear();this.connection=null;this.catalog=[];this.token='';this.url='';}
+ disconnect(){this.generation++;for(const session of [...this.sessions])session.stop();this.statuses.clear();this.connection=null;this.accountIdentity=null;this.catalog=[];this.token='';this.url='';}
  destroy(){this.disconnect();}
 }

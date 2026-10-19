@@ -6,7 +6,7 @@ import {validateConfig} from '../src/engine.mjs';
 // Optional local runtime. Static hosting runs the local rules helper only.
 const root=resolve('dist'),port=Number(process.env.PORT||8080),host=process.env.NS_HOST||'127.0.0.1';
 const aiBase=process.env.AI_BASE_URL?.replace(/\/$/,''),aiModel=process.env.AI_MODEL,aiKey=process.env.AI_API_KEY;
-const mime={'.html':'text/html; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.txt':'text/plain; charset=utf-8'};
+const mime={'.html':'text/html; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.json':'application/json','.txt':'text/plain; charset=utf-8'};
 const json=(res,status,body)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(body));};
 const server=http.createServer(async(req,res)=>{
  try {

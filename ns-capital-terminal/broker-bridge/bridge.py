@@ -89,7 +89,8 @@ class MT5Source:
     def status(self):
         with self.lock:
             terminal, account = self.mt5.terminal_info(), self.mt5.account_info()
-        return {"protocol": PROTOCOL, "readOnly": True, "platform": "MT5", "broker": getattr(account, "company", "MT5 broker"), "connected": bool(terminal and terminal.connected and account), "serverTimeBasis": "UTC", "accountCurrency": getattr(account, "currency", None)}
+        details = None if account is None else {"id": str(getattr(account, "login", "")), "server": str(getattr(account, "server", "")), "currency": str(getattr(account, "currency", "")), "mode": "demo" if getattr(account, "trade_mode", None) == 0 else "real" if getattr(account, "trade_mode", None) == 2 else "contest" if getattr(account, "trade_mode", None) == 1 else "unknown", "balance": getattr(account, "balance", None), "equity": getattr(account, "equity", None), "freeMargin": getattr(account, "margin_free", None)}
+        return {"protocol": PROTOCOL, "readOnly": True, "platform": "MT5", "broker": getattr(account, "company", "MT5 broker"), "connected": bool(terminal and terminal.connected and account), "serverTimeBasis": "UTC", "accountCurrency": getattr(account, "currency", None), "account": details}
 
     def symbols(self):
         with self.lock:
@@ -101,7 +102,7 @@ class MT5Source:
                 tick = s.trade_tick_size or s.point
                 if not SYMBOL.fullmatch(s.name) or not s.currency_profit or not tick or s.trade_mode == 0:
                     continue
-                result.append({"ticker": s.name, "description": s.description, "type": classify(s.name, s.path), "currency": s.currency_profit, "baseAsset": s.currency_base, "tickSize": tick, "tickValue": s.trade_tick_value, "lotStep": s.volume_step, "contractSize": s.trade_contract_size})
+                result.append({"ticker": s.name, "description": s.description, "type": classify(s.name, s.path), "currency": s.currency_profit, "baseAsset": s.currency_base, "tickSize": tick, "tickValue": s.trade_tick_value, "lotStep": s.volume_step, "contractSize": s.trade_contract_size, "assetClass": "futures" if getattr(s, "trade_calc_mode", -1) in (1, 33, 34) else "cfd" if getattr(s, "trade_calc_mode", -1) in (0, 2, 3, 4, 5) else "other", "expiry": int(getattr(s, "expiration_time", 0)) * 1000, "exchange": str(getattr(s, "exchange", ""))})
             return result
 
     def select(self, symbol):
@@ -135,11 +136,12 @@ class MT4Source:
         self.catalog, self.quotes = {}, {}
         self.series, self.pending = OrderedDict(), OrderedDict()
         self.broker, self.heartbeat, self.connected = "MT4 broker", 0, False
+        self.account = None
         self.wait_seconds = wait_seconds
 
     def status(self):
         with self.condition:
-            return {"protocol": PROTOCOL, "readOnly": True, "platform": "MT4", "broker": self.broker, "connected": self.connected and time.monotonic() - self.heartbeat < 45, "serverTimeBasis": "UTC (EA configured broker offset)", "error": None if self.heartbeat else "Attach NS_Market_Bridge EA and allow WebRequest"}
+            return {"protocol": PROTOCOL, "readOnly": True, "platform": "MT4", "broker": self.broker, "account": self.account, "connected": self.connected and time.monotonic() - self.heartbeat < 45, "serverTimeBasis": "UTC (EA configured broker offset)", "error": None if self.heartbeat else "Attach NS_Market_Bridge EA and allow WebRequest"}
 
     def symbols(self):
         with self.condition:
@@ -156,13 +158,22 @@ class MT4Source:
                 ticker = valid_symbol(m["ticker"])
                 if not isinstance(m.get("currency"), str) or not m["currency"]:
                     continue
-                catalog[ticker] = {"ticker": ticker, "description": str(m.get("description", ticker))[:500], "currency": m["currency"][:12], "tickSize": finite(m["tickSize"], 1e-16), "type": classify(ticker, str(m.get("path", ""))), "lotStep": finite(m.get("lotStep", .01), 1e-16)}
+                catalog[ticker] = {"ticker": ticker, "description": str(m.get("description", ticker))[:500], "currency": m["currency"][:12], "tickSize": finite(m["tickSize"], 1e-16), "type": classify(ticker, str(m.get("path", ""))), "lotStep": finite(m.get("lotStep", .01), 1e-16), "assetClass": "cfd", "expiry": finite(m.get("expiry", 0), 0)}
         quotes = [clean_quote(q) for q in payload.get("quotes", [])]
         series = []
         for entry in payload.get("series", []):
             key = (valid_symbol(entry["symbol"]), valid_frame(entry["timeframe"]))
             series.append((key, clean_bars(entry["bars"])))
+        account = payload.get("account")
+        if account is not None:
+            if not isinstance(account, dict) or not str(account.get("id", "")) or not str(account.get("server", "")):
+                raise ValueError("Invalid trading account identity")
+            account = {"id": str(account["id"])[:80], "server": str(account["server"])[:160], "currency": str(account.get("currency", ""))[:12], "mode": "demo" if account.get("mode") == "demo" else "real", **{key: finite(account[key]) for key in ("balance", "equity", "freeMargin") if key in account}}
         with self.condition:
+            if account is not None:
+                if self.account and (account["id"], account["server"]) != (self.account["id"], self.account["server"]):
+                    self.catalog.clear(); self.quotes.clear(); self.series.clear(); self.pending.clear()
+                self.account = account
             if catalog is not None:
                 self.catalog = catalog
             for q in quotes:
@@ -292,9 +303,18 @@ def make_handler(source, token, allowed_origins, allowed_hosts):
                     return self.reply(404, {"error": "Unknown data route"})
                 if not source.status()["connected"]:
                     return self.reply(503, {"error": "Broker terminal is disconnected"})
+                expected = query.get("accountKey")
+                def same_account():
+                    account = source.status().get("account") or {}
+                    return str(account.get("server", "")) + "|" + str(account.get("id", "")) == expected
+                if expected and not same_account():
+                    return self.reply(409, {"error": "Trading account changed. Reconnect the account"})
                 symbol = valid_symbol(query.get("symbol"))
                 if url.path == "/v1/quote":
-                    return self.reply(200, source.quote(symbol))
+                    quote = source.quote(symbol)
+                    if expected and not same_account():
+                        return self.reply(409, {"error": "Trading account changed during request"})
+                    return self.reply(200, quote)
                 frame = valid_frame(query.get("timeframe", "15"))
                 limit = int(query.get("limit", "720"))
                 if not 1 <= limit <= 10000:
@@ -303,7 +323,10 @@ def make_handler(source, token, allowed_origins, allowed_hosts):
                 end = int(finite(query["to"])) if "to" in query else None
                 if start is not None and end is not None and start > end:
                     raise ValueError("Invalid time range")
-                return self.reply(200, {"symbol": symbol, "timeframe": frame, "bars": source.bars(symbol, frame, limit, start, end)})
+                bars = source.bars(symbol, frame, limit, start, end)
+                if expected and not same_account():
+                    return self.reply(409, {"error": "Trading account changed during request"})
+                return self.reply(200, {"symbol": symbol, "timeframe": frame, "bars": bars})
             except (ValueError, KeyError, TypeError) as error:
                 self.reply(400, {"error": str(error)})
             except Exception:

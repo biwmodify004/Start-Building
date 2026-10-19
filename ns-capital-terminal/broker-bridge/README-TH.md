@@ -62,7 +62,28 @@ Browser อาจขอสิทธิ์ Local network access หรือบ�
 
 สำหรับ VPS ให้รัน gateway บน loopback ตามค่าเริ่มต้น ใช้ reverse proxy / tunnel ที่ตั้ง TLS ได้ ส่งต่อไป `127.0.0.1:8787` และส่ง Authorization header ผ่านตามเดิม ถ้า proxy ส่ง Host เป็นชื่อภายนอกให้ตั้ง `NS_ALLOWED_HOSTS` รวมชื่อโดเมนนั้น จำกัด CORS ด้วย `NS_ALLOWED_ORIGINS` เป็น origin ของเว็บจริง ค่าตั้งต้นอนุญาต NS Capital site เดิมกับ localhost:8080 เท่านั้น อย่าเปิด wildcard หรือใส่ token ใน URL
 
-Token อยู่ในหน่วยความจำของเว็บสำหรับ session ที่เชื่อม ไม่บันทึกใน Backup/localStorage และต้องใส่ใหม่เมื่อรีเฟรชเว็บ MT4/MT5 ยังคงต้องเปิดและล็อกอินอยู่ ถ้ารันหลายโบรกให้รัน gateway แยก process / port / token / MT5 path และเชื่อมทีละบัญชีในเว็บนี้
+Token อยู่ในหน่วยความจำของเว็บสำหรับ session ที่เชื่อม ไม่บันทึกใน Backup/localStorage และต้องใส่ใหม่เมื่อรีเฟรชเว็บ MT4/MT5 ยังคงต้องเปิดและล็อกอินอยู่ ถ้ารันหลายโบรกให้รัน gateway แยก process / port / token / MT5 path และเพิ่มหลายโปรไฟล์ในเว็บแล้วสลับบัญชีที่ใช้งานได้ โดยมี gateway ที่ active ครั้งละหนึ่งบัญชี
+
+## เพิ่มและสลับบัญชี CFD / Futures
+
+1. อัปเดต `bridge.py` และ EA จาก ZIP รุ่นปัจจุบัน แล้วเปิด Terminal ที่ล็อกอินบัญชีจริงหรือ Demo ของคุณ
+2. ในเว็บเปิด **บัญชีเทรด → เพิ่มบัญชี** ตั้งชื่อและเลือก All / CFD / Futures ใส่ Bridge URL กับ token แล้วกด **ตรวจสอบและเพิ่มบัญชี**
+3. ตรวจชื่อโบรก เลขบัญชีแบบปิดบางส่วน และเซิร์ฟเวอร์ที่อ่านจาก Terminal ยอด Balance / Equity มาจากบัญชีที่เชื่อม ไม่ใช่ยอด Paper Trading; กดอัปเดตรายการเพื่อโหลด snapshot ใหม่
+4. บัญชีที่สองต้องใช้ Terminal/path และ gateway แยกกัน เช่นพอร์ต 8788 พร้อม token ของบัญชีนั้น แล้วเพิ่มเป็นอีกโปรไฟล์ สลับจากปุ่มเชื่อมต่อข้างบัญชีได้ เว็บแยกข้อมูลกราฟและ watchlist ตามโปรไฟล์
+5. Token อยู่เฉพาะหน่วยความจำระหว่างเปิดหน้าเว็บ รีเฟรชแล้วต้องใส่ใหม่ การตั้งค่าโปรไฟล์เก็บในเบราว์เซอร์นี้ เลขบัญชีแสดงแบบปิดบางส่วน ไม่มีการส่งรหัสผ่านโบรกเข้าเว็บ
+
+ตัวอย่าง gateway สำหรับ Terminal MT5 อีกชุด (ต้องติดตั้ง Terminal และล็อกอินบัญชีแยกจริงก่อน):
+
+```powershell
+$env:NS_MT5_PATH = "C:\Program Files\Your Futures Broker MT5\terminal64.exe"
+py bridge.py --mode mt5 --port 8788
+```
+
+**CFD / Forex:** ใช้กับ MT4/MT5 ตามบัญชีโบรก **Futures:** รองรับสัญญาที่บัญชี MT5 นั้นมีจริง โดยอ่านชนิดการคำนวณสัญญา (`trade_calc_mode`), ตลาด และวันหมดอายุจาก Terminal ตัวกรอง Futures ไม่ได้เปลี่ยน Index CFD เป็น Futures ถ้าบัญชีไม่มีสัญญา เว็บจะแสดงว่าไม่พบรายการ MT4 แสดงเป็น CFD / Forex ส่วน IBKR, Tradovate, Rithmic และแพลตฟอร์มที่ไม่มี MetaTrader ต้องพัฒนา adapter แยก
+
+ถ้าเปลี่ยนบัญชีหรือเซิร์ฟเวอร์ใน Terminal โดยใช้ URL เดิม ระบบจะหยุดรับราคาและให้เชื่อมใหม่ เพิ่มเป็นโปรไฟล์ใหม่เพื่อยืนยันตัวตนบัญชีใหม่ คำขอ HTTP ราคาและแท่งถูกตรวจเทียบกับบัญชีที่เชื่อมอยู่
+
+การเชื่อมนี้อ่านข้อมูลบัญชี ยอดเงิน และราคา ยังไม่มีการเปิด/ปิดหรือแก้ไขออเดอร์เงินจริง
 
 ## 4. เชื่อม MCP ให้ AI อ่านราคา
 
@@ -72,7 +93,7 @@ Token อยู่ในหน่วยความจำของเว็บ�
 2. ปรับ `mcp-config.example.json` ให้เป็น path ของ Python และ `mcp_server.py` บนเครื่องจริง
 3. ตั้ง `NS_BRIDGE_URL` และ token ให้เหมือน gateway ห้าม commit token ที่ใช้งานจริง
 4. เพิ่ม server ใน MCP client แล้วเชื่อมต่อ มีเครื่องมือ:
-   - `get_connection_status`: บริษัทโบรกจริง, MT4/MT5 และสถานะ terminal
+   - `get_connection_status`: บริษัทโบรกจริง, MT4/MT5, สถานะ terminal และข้อมูลบัญชี (ID/server/currency/balance/equity)
    - `list_symbols`: ชื่อ symbol จริงรวม suffix เช่น `.pro`, `.cash`, tick size และสกุลเงินกำไร
    - `get_quote`: Bid/Ask และเวลา tick UTC milliseconds ต้องตรวจความสด
    - `get_candles`: OHLCV; TF `1,5,15,30,60,240,D,W` สูงสุด 10,000 แท่ง แท่งท้ายอาจยังไม่ปิด
@@ -89,7 +110,7 @@ Token อยู่ในหน่วยความจำของเว็บ�
 
 ## ขอบเขตข้อมูล
 
-- อ่านราคาและแท่งเทียนเท่านั้น ไม่มีส่งออเดอร์ ถอนเงิน หรือแก้ไขบัญชี
+- อ่านข้อมูลบัญชี ยอดเงิน ราคา และแท่งเทียน ไม่มีส่งออเดอร์ ถอนเงิน หรือแก้ไขบัญชี
 - เว็บ polling ประมาณ 2 วินาที จึงไม่ใช่ tick-by-tick streaming หรือระบบความถี่สูง
 - ป้าย BROKER · LIVE แสดงเมื่อได้รับ quote ที่มีอายุไม่เกิน 30 วินาที พร้อมแท่งที่ถูกต้องเท่านั้น ไม่มี tick ใหม่จะแสดง STALE / WAIT และไม่เติมข้อมูลสุ่ม
 - รายการ symbol และชื่อ suffix มาจาก terminal จริง ไม่เดาว่า US30/USTEC หรือ GOLD ใช้ชื่อเหมือนกันทุกโบรก สิทธิ์และสินทรัพย์ขึ้นกับบัญชี/ภูมิภาค
@@ -103,6 +124,8 @@ Token อยู่ในหน่วยความจำของเว็บ�
 - Axi MT5 TH: https://www.axi.com/th/trading-platforms/metatrader-5
 - Axi metals: https://help.axi.com/en-US/axiv2--axicorp-prod/article/nNC8Nal6-what-precious-metals-can-i-trade
 - MetaQuotes Python: https://www.mql5.com/en/docs/python_metatrader5
+- Account info: https://www.mql5.com/en/docs/python_metatrader5/mt5accountinfo_py
+- Futures / CFD contract modes: https://www.mql5.com/en/docs/constants/environment_state/marketinfoconstants
 - MQL4 WebRequest: https://docs.mql4.com/common/webrequest
 - TradingView data FAQ: https://www.tradingview.com/widget-docs/faq/data/
 - MCP transport: https://modelcontextprotocol.io/specification/2025-11-25/basic/transports

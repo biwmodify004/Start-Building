@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
 import {setupResponsive} from '../src/responsive.mjs';
+import {setupMarketTabs} from '../src/terminal-ui.mjs';
 
 // DOM behavior only: no browser layout, device pixels or canvas rendering are simulated.
 const html=await readFile(new URL('../src/index.html',import.meta.url),'utf8');
@@ -11,7 +12,7 @@ function fixture(width=390,height=844){
  Object.defineProperties(win,{innerWidth:{value:width,writable:true,configurable:true},innerHeight:{value:height,writable:true,configurable:true}});
  const viewport=new win.EventTarget();Object.assign(viewport,{height,width,scale:1});Object.defineProperty(win,'visualViewport',{value:viewport,configurable:true});
  win.HTMLDialogElement.prototype.showModal=function(){this.open=true;};win.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new win.Event('close'));};
- let openedMarkets=0;const controller=setupResponsive({doc,win,onMarkets:()=>{openedMarkets++;}});
+ setupMarketTabs({doc});let openedMarkets=0;const controller=setupResponsive({doc,win,onMarkets:()=>{openedMarkets++;}});
  return{dom,win,doc,$,viewport,controller,markets:()=>openedMarkets,button:view=>doc.querySelector('[data-compact-view="'+view+'"]'),resize(w,h){win.innerWidth=w;win.innerHeight=h;viewport.height=h;win.dispatchEvent(new win.Event('resize'));},destroy(){controller.destroy();dom.window.close();}};
 }
 test('phone drawers are exclusive, block background focus, and restore their opener',()=>{
@@ -26,9 +27,9 @@ test('phone drawers are exclusive, block background focus, and restore their ope
 });
 test('drawer keyboard navigation remains inside the panel and watchlist selection closes it',()=>{
  const f=fixture();try{
-  f.button('watchlist').click();const input=f.$('risk-lot-step');input.focus();f.doc.dispatchEvent(new f.win.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));assert.equal(f.doc.activeElement,f.$('watch-add'));
+  f.button('watchlist').click();f.$('market-tab-risk').click();const input=f.$('risk-lot-step');input.focus();f.doc.dispatchEvent(new f.win.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));assert.equal(f.doc.activeElement,f.$('watch-add'));
   f.$('watch-add').focus();f.doc.dispatchEvent(new f.win.KeyboardEvent('keydown',{key:'Tab',shiftKey:true,bubbles:true,cancelable:true}));assert.equal(f.doc.activeElement,input);
-  const row=f.doc.createElement('button');row.dataset.symbol='sample:XAUUSD';f.$('watchlist').append(row);row.click();assert.equal(f.$('market-panel').inert,true);assert.equal(f.$('drawer-backdrop').hidden,true);
+  const row=f.doc.createElement('button');row.dataset.symbol='binance:BTCUSDT';f.$('watchlist').append(row);row.click();assert.equal(f.$('market-panel').inert,true);assert.equal(f.$('drawer-backdrop').hidden,true);
  }finally{f.destroy();}
 });
 test('compact menu forwards each action to the existing control and closes before opening a dialog',()=>{
