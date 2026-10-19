@@ -1,0 +1,188 @@
+/* Responsive host UI. The chart engine keeps its own automatic touch layout. */
+:root{--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);--safe-left:env(safe-area-inset-left,0px);--safe-right:env(safe-area-inset-right,0px)}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overscroll-behavior:none}
+.app-shell{height:var(--app-height,100dvh);min-width:0}
+.research-panel{grid-column:1;grid-row:2}.workspace-main{grid-column:2;grid-row:2}.market-panel{grid-column:3;grid-row:2}.app-footer{grid-row:3}
+.workspace-main,.research-panel,.research-scroll,.market-panel{min-height:0}
+#chart-container{min-height:0;overflow:hidden;touch-action:none}
+.analysis-panel{height:clamp(210px,31dvh,290px);min-height:44px}
+.analysis-panel.collapsed{height:44px}
+.analysis-tabs{height:44px;min-height:44px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
+.analysis-tabs button{flex-shrink:0;min-height:44px}
+#analysis-toggle{position:sticky;right:0;min-width:36px;flex-shrink:0;background:var(--panel);z-index:1}
+.tab-content{height:calc(100% - 44px)}
+.data-toolbar,#broker-controls{flex-shrink:0}
+.source-group{min-width:0}
+.data-actions{min-width:0;flex-shrink:0}
+.market-notice{max-height:90px;overflow:auto;flex-shrink:0;overflow-wrap:anywhere}
+.table-scroll{overscroll-behavior:contain}
+.journal-form input{min-width:0}
+#compact-nav,#compact-menu-btn,.drawer-close{display:none}
+#drawer-backdrop{position:fixed;inset:0;z-index:40;background:#0008;backdrop-filter:blur(2px);cursor:pointer;touch-action:none}
+.compact-menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.compact-menu-grid>button{display:flex;align-items:center;gap:10px;min-height:56px;padding:12px;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow-wrap:anywhere;font-size:13px}
+.compact-menu-grid>button>span:first-child{font-size:20px;color:var(--accent);flex-shrink:0}
+dialog{max-height:calc(var(--app-height,100dvh) - 24px - var(--safe-top) - var(--safe-bottom));max-width:calc(100vw - 24px - var(--safe-left) - var(--safe-right));overflow:hidden}
+dialog[open]{display:flex;flex-direction:column}
+.dialog-heading{flex-shrink:0;gap:8px;min-width:0}
+.dialog-heading>strong{min-width:0;overflow-wrap:anywhere}
+.dialog-heading button{flex-shrink:0}
+.dialog-body,#assets-dialog .dialog-body,.broker-body{flex:1;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain}
+#global-dialog{height:calc(var(--app-height,100dvh) - 24px - var(--safe-top) - var(--safe-bottom));max-height:none}
+#global-chart{min-height:100px;flex:1 1 0}
+.global-toolbar,.global-note,.global-footer{flex-shrink:0}
+.global-note,.global-footer{overflow-wrap:anywhere}
+.bridge-status,.broker-market{overflow-wrap:anywhere}
+#broker-token,#broker-url,#broker-mcp-url{text-align:left}
+
+@media(min-width:1600px){
+ .app-shell{grid-template-columns:318px minmax(0,1fr) 278px}
+ .brand{min-width:268px}.welcome h1{font-size:28px}
+ .no-left .app-shell{grid-template-columns:0 minmax(0,1fr) 278px}
+ .no-right .app-shell{grid-template-columns:318px minmax(0,1fr) 0}
+ .no-left.no-right .app-shell{grid-template-columns:0 minmax(0,1fr) 0}
+}
+@media(min-width:1181px) and (max-width:1399px){
+ .app-shell{grid-template-columns:264px minmax(0,1fr) 240px}
+ .no-left .app-shell{grid-template-columns:0 minmax(0,1fr) 240px}
+ .no-right .app-shell{grid-template-columns:264px minmax(0,1fr) 0}
+ .no-left.no-right .app-shell{grid-template-columns:0 minmax(0,1fr) 0}
+ .brand{min-width:200px}.app-header{gap:16px}.header-actions{margin-left:auto}.main-nav{gap:13px}
+ .source-group>span:last-child{display:none}
+}
+
+@media(max-width:1180px){
+ body{font-size:14px;--header-height:calc(56px + var(--safe-top))}
+ .app-shell,.no-left .app-shell,.no-right .app-shell,.no-left.no-right .app-shell{grid-template-columns:0 minmax(0,1fr) 0;grid-template-rows:var(--header-height) minmax(0,1fr) 62px calc(24px + var(--safe-bottom));padding-left:var(--safe-left);padding-right:var(--safe-right)}
+ .app-header{grid-row:1;padding:var(--safe-top) 14px 0;gap:12px;min-width:0}
+ .brand{min-width:0;flex:1;font-size:12px;letter-spacing:1.2px;min-height:44px}
+ .brand-mark{width:30px;height:30px}.brand small{font-size:8px}
+ .main-nav,.workspace-label{display:none}
+ .header-actions{margin-left:auto;gap:6px}
+ .header-actions>#broker-btn,.header-actions>#import-btn,.header-actions>#backup-btn,.header-actions>#lang-btn,.header-actions>#theme-btn,.header-actions>#help-btn{display:none}
+ .header-actions .square,#compact-menu-btn{display:inline-grid;min-width:44px;width:44px;height:44px;font-size:21px;border:1px solid var(--border);border-radius:8px}
+ .workspace-main{grid-column:2;grid-row:2}
+ #compact-nav{grid-column:1/-1;grid-row:3;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--border);background:var(--panel);z-index:30}
+ #compact-nav>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;min-height:54px;padding:5px 2px;color:var(--muted);font-size:11px;line-height:1.3;border-top:2px solid transparent;touch-action:manipulation}
+ #compact-nav>button>span:first-child{font-size:22px;line-height:1.1}
+ #compact-nav>button.active{color:var(--accent);background:var(--surface);border-top-color:var(--accent)}
+ .app-footer{grid-row:4;font-size:10px;gap:16px;padding:0 12px var(--safe-bottom);min-width:0}
+ .app-footer>span:first-child,.footer-right>span{display:none}.footer-right a{font-size:9px}.footer-right{margin-left:auto;min-width:0}
+ .research-panel,.market-panel,.no-left .research-panel,.no-right .market-panel{display:none}
+ .mobile-research .research-panel,.show-market .market-panel{position:fixed;top:0;bottom:auto;width:min(420px,94vw);max-width:calc(100vw - var(--safe-left) - var(--safe-right));height:var(--app-height,100dvh);padding-top:var(--safe-top);padding-bottom:var(--safe-bottom);z-index:50;background:var(--panel);box-shadow:0 0 40px #0008;overflow:hidden}
+ .mobile-research .research-panel{display:flex;left:var(--safe-left);right:auto}
+ .show-market .market-panel{display:block;right:var(--safe-right);left:auto;overflow-y:auto;overscroll-behavior:contain}
+ .panel-heading{height:56px;min-height:56px;gap:9px;padding:0 16px}
+ .market-panel>.panel-heading{position:sticky;top:0;z-index:2;background:var(--panel)}
+ .panel-heading strong{font-size:14px}.panel-heading .small-tag{font-size:9px}
+ .drawer-close{display:inline-grid;min-width:44px;width:44px;height:44px;font-size:24px}
+ .research-scroll{padding:18px;overscroll-behavior:contain}.welcome{padding:0 4px 20px}.welcome h1{font-size:27px}.welcome p{font-size:13px;max-width:none}
+ .orb{margin-bottom:16px}.suggestions button{padding:13px;font-size:14px;min-height:64px}.suggestions small{font-size:11px}
+ .recipe-card{padding:15px;margin-top:18px}.recipe-heading{font-size:13px}#recipe-description{font-size:13px}.recipe-meta span{font-size:11px}
+ .message{font-size:14px}.message .message-label{font-size:10px}.capability-note{font-size:11px}.research-bottom{font-size:10px}
+ .prompt-box{flex-shrink:0;margin:10px 12px 0}.prompt-box textarea{font-size:16px;min-height:64px}.prompt-footer{font-size:11px}.send-btn{width:44px;height:44px;font-size:23px}
+ .data-toolbar,.crypto-mode .data-toolbar{height:auto;min-height:0;padding:5px 10px 7px;gap:3px;flex-wrap:wrap}
+ .source-group,.crypto-mode .source-group{width:100%;min-height:20px;height:20px;font-size:11px;justify-content:flex-start}
+ .source-group strong{font-size:10px;letter-spacing:.6px}.source-group>span:last-child,.crypto-mode .source-group>span:last-child{display:block;min-width:0;font-size:10px;margin-left:auto}
+ .data-actions,.crypto-mode .data-actions{display:flex;align-items:center;flex-wrap:wrap;width:100%;gap:6px;margin:0}
+ .data-actions select,.data-actions .quiet,#crypto-browser,.crypto-mode #crypto-reconnect{min-height:40px;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px}
+ #source-select{order:0;flex:1 1 150px;min-width:120px;max-width:none}
+ #crypto-controls{display:contents}
+ #crypto-pair,.crypto-mode #crypto-pair{order:1;flex:1 1 130px;max-width:none;min-width:110px}
+ #crypto-browser{order:2;flex:1 1 155px;min-width:0;white-space:normal}
+ #crypto-reconnect{order:3;flex-shrink:0}.crypto-mode #crypto-reconnect span{white-space:normal}
+ #alert-btn{order:4;flex-shrink:0}#focus-btn{order:5;min-width:42px;flex-shrink:0;font-size:19px}
+ #broker-controls{padding:6px 10px;gap:6px;flex-wrap:wrap}
+ #broker-controls select{min-height:40px;font-size:16px;min-width:120px;max-width:none;flex:1 1 150px}
+ #broker-manage{min-height:40px;font-size:12px;border:1px solid var(--border)}#broker-feed-name{display:none}
+ .market-notice{font-size:12px;line-height:1.6;padding:7px 10px;max-height:68px}
+ .analysis-tabs{gap:20px;padding:0 10px}.analysis-tabs button{font-size:12px}.analysis-tabs button span{font-size:10px}#analysis-toggle{min-width:44px;font-size:20px}
+ .analysis-panel:not(.collapsed){height:clamp(220px,31dvh,310px)}
+ .tab-content{padding:14px;overscroll-behavior:contain}.results-heading{white-space:normal;align-items:flex-start;gap:12px}.results-heading>span{min-width:0;overflow-wrap:anywhere}.results-heading strong{font-size:12px}.results-heading .small-tag{font-size:9px}.results-heading .text-link{font-size:11px;flex-shrink:0;min-height:32px}
+ .metric>span{font-size:10px;letter-spacing:.5px}.metric>strong{font-size:23px}.metric>small{font-size:11px;overflow-wrap:anywhere}.metric{padding:0 10px;min-width:0}
+ .axis-caption{font-size:9px}.equity-end{font-size:11px}.result-footnote{font-size:11px;white-space:normal;line-height:1.7}
+ .table-scroll{max-height:none}.table-scroll table{min-width:600px;font-size:13px}.table-scroll th{font-size:10px}.table-scroll td,.table-scroll th{padding:11px 12px 11px 0}
+ .watch-row{min-height:62px;padding:12px 16px;gap:10px}.asset-badge{width:31px;height:31px;font-size:16px}.watch-symbol,.watch-price{font-size:14px}.watch-symbol small{font-size:11px;max-width:180px}.watch-price small{font-size:11px}.watch-head{font-size:10px}.watch-footer{font-size:11px}
+ .instrument-heading strong{font-size:15px}.instrument-heading small{font-size:12px}.instrument-heading .small-tag{font-size:10px}.instrument-price{font-size:32px;overflow-wrap:anywhere}#instrument-change{font-size:12px}.ohlc-grid{font-size:13px}.ohlc-grid span{font-size:11px}
+ .section-title{font-size:14px}.field-row>span{font-size:13px}.ticket-prices label>span,.risk-grid label>span{font-size:12px}.risk-result{font-size:13px;flex-wrap:wrap}.tiny{font-size:11px}.side-buttons button{min-height:48px;font-size:15px}.side-buttons small{font-size:11px}
+ :is(.app-header,.data-toolbar,.research-panel,.market-panel,.analysis-panel,dialog) :is(input,select,textarea){font-size:16px}
+ :is(.market-panel,.analysis-panel,dialog) :is(input,select){min-height:44px}
+ .primary{min-height:44px;font-size:14px}.square{width:44px;height:44px}.quiet,.text-link{min-height:40px}
+ .editor-grid{height:auto;min-height:100%;grid-template-columns:1fr 1fr;gap:14px}#recipe-editor{font-size:16px;min-height:190px;height:calc(100% - 26px)}.editor-help strong{font-size:14px}.editor-help p{font-size:12px}.editor-help .primary{min-height:44px;font-size:13px}
+ .journal-form{flex-wrap:wrap}.journal-form input{min-width:160px}.journal-entry{font-size:13px;gap:10px;flex-wrap:wrap}.journal-entry .stamp{font-size:11px}.paper-summary{flex-wrap:wrap;gap:10px}.paper-summary p{font-size:11px;max-width:none}.paper-history{font-size:12px}.close-position{min-height:44px;font-size:12px}
+ dialog{width:min(690px,calc(100vw - 24px));border-radius:12px;margin:auto}
+ .dialog-heading{padding:8px 12px;min-height:60px;font-size:15px}.dialog-heading .square{min-width:44px;min-height:44px;font-size:24px}.dialog-body,#assets-dialog .dialog-body{padding:14px}.dialog-body>p,.broker-body>p{font-size:13px}
+ #assets-dialog,#broker-dialog{max-width:calc(100vw - 24px - var(--safe-left) - var(--safe-right))}
+ .asset-filters{flex-wrap:wrap;gap:8px}.asset-filters input{flex:1 1 100%;min-width:0;width:100%}.asset-filters select{flex:1;max-width:none}.asset-filters .quiet{font-size:13px}
+ #asset-summary,#asset-error{font-size:12px;line-height:1.6}.asset-table-wrap{height:min(40dvh,420px);min-height:120px;overscroll-behavior:contain}.asset-table-wrap table{font-size:13px}.asset-table-wrap th{font-size:10px}.asset-open{white-space:normal;overflow-wrap:anywhere;min-height:48px}.asset-open strong{font-size:14px}.asset-open small{font-size:11px}.asset-chart-button{min-height:44px;font-size:12px;padding:7px 9px}.asset-pagination{font-size:13px}.asset-pagination .quiet{min-height:44px;font-size:13px}
+ #global-dialog{width:calc(100vw - 16px - var(--safe-left) - var(--safe-right));max-width:none}
+ .global-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) 75px;gap:8px;padding:8px 12px}
+ .global-toolbar select{width:100%;min-width:0;max-width:none;min-height:44px}#global-symbol{min-width:0;max-width:none}#global-category{max-width:none}.global-toolbar .primary{grid-column:1/3}.global-toolbar .text-link{margin:0;font-size:12px;min-height:40px;display:grid;place-content:center}
+ .global-note{font-size:11px;padding:6px 12px}.global-footer{font-size:11px;line-height:1.5;padding:7px 12px;max-height:54px;overflow:auto}
+ .broker-body .field-row input,.broker-body .field-row select{width:70%}.broker-buttons{flex-wrap:wrap}.bridge-setup ol{font-size:13px}.bridge-setup{font-size:15px}.bridge-status{font-size:13px}.bridge-links{gap:12px}.bridge-links .primary{white-space:normal;text-align:center}.bridge-links a:not(.primary){font-size:13px;min-height:44px;display:inline-flex;align-items:center}
+ #broker-market-list{max-height:260px}.broker-market{min-height:54px;white-space:normal;align-items:flex-start}.broker-market strong{font-size:14px}.broker-market span{font-size:12px}
+ .toast-stack{right:12px;bottom:calc(100px + var(--safe-bottom));max-width:calc(100vw - 24px)}.toast{font-size:13px;line-height:1.6}
+ .focus .app-shell{grid-template-columns:0 minmax(0,1fr) 0}.focus .research-panel,.focus .market-panel,.focus .analysis-panel{display:none}
+}
+
+@media(max-width:767px){
+ .app-header{padding-left:10px;padding-right:10px}.brand{font-size:11px}.header-actions{gap:4px}
+ .mobile-research .research-panel,.show-market .market-panel{width:min(380px,94vw)}
+ .phone-layout .analysis-panel:not(.collapsed){height:min(48%,360px)}
+ .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 0}.metric{padding:0 12px}.metric:nth-child(odd){padding-left:0}.metric:nth-child(even){border:0}.metric:last-child{grid-column:1/-1}.metric>strong{font-size:24px;overflow-wrap:anywhere}
+ .equity-wrap{margin-top:14px;height:82px}.equity-wrap svg{height:63px}
+ .editor-grid{grid-template-columns:1fr;height:auto}.editor-help{display:block}#recipe-editor{height:200px;min-height:160px}
+ .journal-form input{flex-basis:100%;min-width:0}.journal-form select{flex:1}.journal-entry .stamp{width:100%}
+ .field-row,.broker-body .field-row{display:flex;flex-direction:column;align-items:stretch;gap:6px}.field-row>input,.field-row>select,.broker-body .field-row input,.broker-body .field-row select{width:100%;text-align:left}
+ .asset-table-wrap table{table-layout:fixed}.asset-table-wrap td:nth-child(2),.asset-table-wrap th:nth-child(2),.asset-table-wrap td:nth-child(3),.asset-table-wrap th:nth-child(3){display:none}.asset-table-wrap td:last-child,.asset-table-wrap th:last-child{width:122px;white-space:nowrap}.asset-table-wrap td:first-child{max-width:none;white-space:normal}.asset-chart-button{font-size:12px;padding:7px}.asset-table-wrap .square{width:40px;min-width:40px}
+ .data-actions #alert-btn>span[data-i18n],.crypto-mode #crypto-reconnect>span{display:none}#crypto-reconnect{min-width:42px}
+ .crypto-mode .source-group>span:last-child{font-size:9px}#crypto-browser{flex-basis:145px;font-size:12px}#source-select{flex-basis:135px}#crypto-pair,.crypto-mode #crypto-pair{flex-basis:115px}
+ #broker-controls>label{display:none}#broker-manage{font-size:11px}
+ #global-dialog{width:100vw;height:var(--app-height,100dvh);border:0;border-radius:0;margin:0;max-height:none;padding:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left)}
+ .global-toolbar{grid-template-columns:minmax(0,1fr) 72px;padding:8px;gap:6px}
+ #global-category{grid-column:1;grid-row:1}#global-symbol{grid-column:1;grid-row:2}#global-timeframe{grid-column:2;grid-row:1}
+ #global-to-broker{grid-column:1/3;grid-row:3}.global-toolbar .text-link{grid-column:2;grid-row:2;font-size:10px;overflow-wrap:anywhere}
+ .global-note{font-size:10px;padding:5px 10px}.global-footer{font-size:10px;padding:6px 10px;max-height:44px}
+ #global-dialog .dialog-heading .small-tag{font-size:8px;letter-spacing:0}
+ #compact-menu{align-self:end;max-width:calc(100vw - 16px);width:520px;margin:auto auto calc(8px + var(--safe-bottom))}
+ .compact-menu-grid>button{font-size:13px;gap:8px;min-height:58px}
+ .broker-market{flex-direction:column;gap:3px}
+ .broker-buttons .primary{flex:1 1 180px}.broker-buttons .quiet{min-height:44px}.bridge-links>a{width:100%;justify-content:center}
+ .file-drop input{max-width:100%;min-width:0}.alert-row{font-size:14px}.alert-row small{font-size:12px}
+}
+
+@media(max-height:560px){
+ .short-viewport .analysis-panel.collapsed{display:none}
+ .analysis-panel.collapsed{height:44px}
+ dialog,.broker-body{min-height:0}.dialog-heading{min-height:44px;padding-top:2px;padding-bottom:2px}
+ #global-dialog{height:var(--app-height,100dvh);width:calc(100vw - var(--safe-left) - var(--safe-right));margin:0 auto;max-height:none;border-radius:0;padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
+ #global-dialog .dialog-heading{min-height:44px;padding:0 10px}.global-toolbar{display:flex;flex-wrap:nowrap;overflow-x:auto;padding:3px 8px;gap:6px;overscroll-behavior-x:contain}
+ .global-toolbar select,.global-toolbar .primary,.global-toolbar .text-link{flex:0 0 auto;width:auto;min-height:40px;font-size:12px}
+ .global-toolbar select{font-size:16px}
+ #global-category{width:140px}#global-symbol{min-width:155px;max-width:230px}#global-timeframe{width:66px}.global-toolbar .text-link{display:flex;align-items:center;font-size:11px}
+ .global-note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;max-height:28px;padding:4px 10px}
+ .global-footer{max-height:32px;font-size:10px;padding:3px 10px}#global-chart{min-height:80px}
+ .research-bottom{display:none}.prompt-box textarea{min-height:44px;height:44px}.welcome .orb{display:none}
+ .compact-menu-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.compact-menu-grid>button{min-height:48px;font-size:12px;padding:8px}
+}
+@media(max-width:1180px) and (max-height:560px){
+ body{--header-height:calc(44px + var(--safe-top))}
+ .app-shell,.no-left .app-shell,.no-right .app-shell,.no-left.no-right .app-shell{grid-template-rows:var(--header-height) minmax(0,1fr) 48px calc(20px + var(--safe-bottom))}
+ #compact-nav>button{min-height:44px;font-size:10px;gap:0;padding:2px}#compact-nav>button>span:first-child{font-size:18px}
+ .data-toolbar,.crypto-mode .data-toolbar{padding:2px 8px 4px;gap:2px}.source-group,.crypto-mode .source-group{height:18px;min-height:18px}
+ .data-actions,.crypto-mode .data-actions{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:1px}
+ #source-select{flex:0 0 150px}#crypto-pair,.crypto-mode #crypto-pair{flex:0 0 130px}#crypto-browser{flex:0 0 155px}
+ #broker-controls{flex-wrap:nowrap;overflow-x:auto}#broker-controls select{flex:1 0 150px}#broker-controls .quiet{flex-shrink:0}
+ .app-footer{font-size:9px}.footer-right a{font-size:9px}
+}
+@media(max-width:1180px){
+ .focus .app-shell{grid-template-rows:0 minmax(0,1fr) 0 0}
+ .focus .app-header,.focus #compact-nav,.focus .app-footer{display:none}
+ .focus .workspace-main{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
+}
+@media(any-pointer:coarse){
+ :is(.app-header,.data-toolbar,.research-panel,.market-panel,.analysis-panel,dialog) :is(input,select,textarea){font-size:16px}
+ :is(.app-header,.data-toolbar,.research-panel,.market-panel,.analysis-panel,dialog) :is(button,input,select){min-height:44px}
+}
+@media(prefers-reduced-motion:reduce){.toast{animation:none}}

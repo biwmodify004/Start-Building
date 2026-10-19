@@ -102,6 +102,13 @@ test('real Vela workspace boots and host research, backtest, journal and paper c
   await globalThis.NSCapital.runBacktest();assert.match($('result-source').textContent,/BROKER/);
   await new Promise(r=>setTimeout(r,250));assert.ok(![...Array(localStorage.length)].map((_,i)=>localStorage.getItem(localStorage.key(i))).join('').includes('fixture-dom-token'));
   $('broker-disconnect').click();await waitFor(()=>workspace.chart.market.symbol==='sample:XAUUSD'&&$('broker-status').textContent.match(/Not connected|ยังไม่ได้/));assert.equal($('broker-controls').hidden,true);
+  const retainedChart=workspace.chart,retainedSymbol=workspace.chart.market.symbol,retainedIndicators=workspace.chart.indicators().map(h=>h.id);
+  w.innerWidth=390;w.innerHeight=844;w.dispatchEvent(new w.Event('resize'));assert.equal(w.document.documentElement.dataset.viewport,'phone');assert.ok($('analysis-panel').classList.contains('collapsed'));
+  w.document.querySelector('[data-compact-view=more]').click();w.document.querySelector('[data-menu-target=nav-journal-btn]').click();assert.equal($('compact-menu').open,false);assert.equal($('tab-journal').hidden,false);assert.ok(!$('analysis-panel').classList.contains('collapsed'));
+  w.document.querySelector('[data-compact-view=watchlist]').click();assert.equal($('market-panel').inert,false);$('market-close').click();assert.equal($('market-panel').inert,true);
+  w.document.querySelector('[data-compact-view=markets]').click();assert.equal($('global-dialog').open,true);assert.ok($('global-chart').querySelector('script'));$('global-dialog').close();
+  for(const [width,height]of [[820,1180],[1024,768],[1366,1024]]){w.innerWidth=width;w.innerHeight=height;w.dispatchEvent(new w.Event('resize'));assert.equal(workspace.chart,retainedChart);assert.equal(workspace.chart.market.symbol,retainedSymbol);assert.deepEqual(workspace.chart.indicators().map(h=>h.id),retainedIndicators);}
+  assert.equal(w.document.documentElement.dataset.viewport,'desktop');assert.equal($('drawer-backdrop').hidden,true);
   assert.equal(errors.length,0,errors.join('\n'));
  }finally{workspace?.destroy();for(const id of timers)clearInterval(id);globalThis.setInterval=originalInterval;globalThis.fetch=originalFetch;globalThis.WebSocket=originalWebSocket;console.error=originalError;if(errors.length)originalError(errors);w.close();}
 });
