@@ -112,7 +112,7 @@ class BridgeHTTPTests(unittest.TestCase):
         self.assertEqual(result.stderr,"")
         self.assertEqual(responses[0]["result"]["protocolVersion"],"2025-11-25")
         tools = responses[1]["result"]["tools"]
-        self.assertEqual(len(tools),4)
+        self.assertEqual(len(tools),6)
         self.assertTrue(all(t["annotations"]["readOnlyHint"] for t in tools))
         self.assertEqual(responses[2]["result"]["structuredContent"]["broker"],"FIXTURE ONLY")
         self.assertEqual(len(responses[3]["result"]["structuredContent"]["bars"]),2)
@@ -193,7 +193,7 @@ class MT5Tests(unittest.TestCase):
 
     def test_mt5_exposes_actual_account_and_futures_contract_metadata(self):
         def symbol(name, calc_mode):
-            return SimpleNamespace(name=name, trade_calc_mode=calc_mode, path="Exchange/Futures" if calc_mode==33 else "CFD/Indices", description=name, trade_tick_size=.25, point=.01, currency_profit="USD", currency_base="", trade_mode=4, trade_tick_value=12.5, volume_step=1, trade_contract_size=50, expiration_time=1797552000, exchange="Fixture Exchange")
+            return SimpleNamespace(name=name, trade_calc_mode=calc_mode, path="Exchange/Futures" if calc_mode==33 else "CFD/Indices", description=name, trade_tick_size=.25, point=.01, currency_profit="USD", currency_base="", trade_mode=4, trade_tick_value=12.5, volume_step=1, volume_min=1, volume_max=100, trade_stops_level=0, trade_contract_size=50, expiration_time=1797552000, exchange="Fixture Exchange")
         module=SimpleNamespace(initialize=lambda:True,terminal_info=lambda:SimpleNamespace(connected=True),account_info=lambda:SimpleNamespace(login=12345678,server="Fixture-Server",company="Fixture",currency="USD",trade_mode=0,balance=10000,equity=10001,margin_free=9500),symbols_get=lambda:[symbol("ESZ6",33),symbol("US30.cash",3)])
         source=MT5Source(module=module)
         self.assertEqual(source.status()["account"]["server"], "Fixture-Server")

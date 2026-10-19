@@ -60,7 +60,7 @@ py bridge.py --mode mt5
 
 Browser อาจขอสิทธิ์ Local network access หรือบล็อกเว็บ HTTPS ที่เรียก HTTP ในเครื่อง หากเชื่อมไม่ได้ ให้ใช้ HTTPS endpoint ของ gateway บน VPS หรือเปิด Terminal แบบ local จากซอร์ส `npm ci`, `npm run build`, `npm start` แล้วเข้า `http://127.0.0.1:8080` แทน
 
-สำหรับ VPS ให้รัน gateway บน loopback ตามค่าเริ่มต้น ใช้ reverse proxy / tunnel ที่ตั้ง TLS ได้ ส่งต่อไป `127.0.0.1:8787` และส่ง Authorization header ผ่านตามเดิม ถ้า proxy ส่ง Host เป็นชื่อภายนอกให้ตั้ง `NS_ALLOWED_HOSTS` รวมชื่อโดเมนนั้น จำกัด CORS ด้วย `NS_ALLOWED_ORIGINS` เป็น origin ของเว็บจริง ค่าตั้งต้นอนุญาต NS Capital site เดิมกับ localhost:8080 เท่านั้น อย่าเปิด wildcard หรือใส่ token ใน URL
+สำหรับ VPS ให้รัน gateway บน loopback ตามค่าเริ่มต้น ใช้ reverse proxy / tunnel ที่ตั้ง TLS ได้ ส่งต่อไป `127.0.0.1:8787` และส่ง Authorization และ X-Trade-Token header ผ่านตามเดิม ถ้า proxy ส่ง Host เป็นชื่อภายนอกให้ตั้ง `NS_ALLOWED_HOSTS` รวมชื่อโดเมนนั้น จำกัด CORS ด้วย `NS_ALLOWED_ORIGINS` เป็น origin ของเว็บจริง ค่าตั้งต้นอนุญาต NS Capital site เดิมกับ localhost:8080 เท่านั้น อย่าเปิด wildcard หรือใส่ token ใน URL
 
 Token อยู่ในหน่วยความจำของเว็บสำหรับ session ที่เชื่อม ไม่บันทึกใน Backup/localStorage และต้องใส่ใหม่เมื่อรีเฟรชเว็บ MT4/MT5 ยังคงต้องเปิดและล็อกอินอยู่ ถ้ารันหลายโบรกให้รัน gateway แยก process / port / token / MT5 path และเพิ่มหลายโปรไฟล์ในเว็บแล้วสลับบัญชีที่ใช้งานได้ โดยมี gateway ที่ active ครั้งละหนึ่งบัญชี
 
@@ -83,7 +83,42 @@ py bridge.py --mode mt5 --port 8788
 
 ถ้าเปลี่ยนบัญชีหรือเซิร์ฟเวอร์ใน Terminal โดยใช้ URL เดิม ระบบจะหยุดรับราคาและให้เชื่อมใหม่ เพิ่มเป็นโปรไฟล์ใหม่เพื่อยืนยันตัวตนบัญชีใหม่ คำขอ HTTP ราคาและแท่งถูกตรวจเทียบกับบัญชีที่เชื่อมอยู่
 
-การเชื่อมนี้อ่านข้อมูลบัญชี ยอดเงิน และราคา ยังไม่มีการเปิด/ปิดหรือแก้ไขออเดอร์เงินจริง
+ค่าเริ่มต้นอ่านข้อมูลบัญชี ยอดเงิน และราคา ส่วนการส่งคำสั่งจริงต้องเปิดสิทธิ์เพิ่มตามขั้นตอนด้านล่าง
+
+## ซื้อขายจากเว็บ (รุ่น 1.5)
+
+1. ดาวน์โหลด ZIP รุ่นนี้และอัปเดตไฟล์ `bridge.py`, `trading.py`, `ai_advisor.py`, `mcp_server.py` รวมถึง EA ถ้าใช้ MT4
+2. เริ่มด้วยคำสั่งต่อไปนี้ (แยก process / port / terminal ต่อบัญชี):
+
+```powershell
+py bridge.py --mode mt5 --enable-trading
+# MT4 ใช้: py bridge.py --mode mt4 --enable-trading
+```
+
+3. คัดลอก **Bridge token** และ **Trade token** ที่ตัวเชื่อมสร้างแยกกันไปใส่ในหน้าบัญชีของเว็บ ไม่ใช้ token ดูราคาแทน token ส่งคำสั่ง ตั้งค่าคงที่ได้ด้วย `NS_BRIDGE_TOKEN` และ `NS_TRADE_TOKEN` ที่สุ่มคนละค่า ความยาวอย่างน้อย 32 ตัว ไม่มี token ถูกบันทึกใน GitHub / Backup / localStorage
+4. MT5 ต้องเปิด Algo Trading และอนุญาตการเทรดผ่าน external Python API ใน Terminal รวมถึงสิทธิ์ของบัญชี ส่วน MT4 ต้องอัปเดตและ Compile EA ใส่ `EnableTrading=true`, `TradeToken` ให้ตรงกับตัวเชื่อม และเปิด Allow live trading
+5. ในเว็บเลือกบัญชีแล้วเปิดแท็บ **ซื้อขาย** ตั้ง Buy / Sell, Lot, SL/TP และ Deviation กด **ตรวจสอบคำสั่ง** ตรวจบัญชีปลายทาง แล้วกดยืนยันจึงส่งจริง
+6. สถานะเปิดเป็นข้อมูลของบัญชีที่เลือก กด SL/TP เพื่อปรับระดับ หรือ Close เพื่อปิดเต็มสถานะตาม ticket รายการ ทั้งสองอย่างต้องตรวจและยืนยัน ไม่มีการส่งข้ามทุกบัญชีหรือ Copy trade อัตโนมัติ
+
+Preview มีอายุ 30 วินาที ตรวจบัญชี/เซิร์ฟเวอร์ ความสด tick ขนาด Lot และสเปกสัญญาก่อนส่ง คำสั่งหนึ่งรายการใช้ preview ได้ครั้งเดียว ป้องกันการกดซ้ำ หากขึ้น pending / unknown อย่ากดสร้างคำสั่งใหม่ซ้ำ ให้ตรวจ Receipt และ Positions / History ใน Terminal ก่อน ระบบไม่ส่งคำสั่งเดิมซ้ำอัตโนมัติ หลังรีสตาร์ตตัวเชื่อม preview เดิมใช้ไม่ได้และต้องตรวจ Terminal เพื่อยืนยันผลค้าง
+
+MT5 ใช้การจับคู่แบบบัญชีจริงของโบรก บัญชี Netting อาจลดหรือกลับด้านสถานะเดิมแทนการเปิด hedge การส่ง Market ใช้ราคา ณ เวลาประมวลผล ไม่รับประกันว่าจะได้ราคาใน preview คำสั่งที่โบกรับไว้หรือจับคู่บางส่วนจะแสดงตามผลจริง ไม่ถือว่า filled ทั้งหมด
+
+## เชื่อม Local AI / API และ MCP
+
+เปิดเซิร์ฟเวอร์ LM Studio พร้อมโมเดลที่เลือก แล้วตั้งค่าบนเครื่อง Bridge ก่อนเริ่ม Python ตัวอย่าง PowerShell:
+
+```powershell
+$env:NS_AI_BASE_URL = "http://127.0.0.1:1234/v1"
+$env:NS_AI_MODEL = "YOUR_LOADED_MODEL_ID"
+py bridge.py --mode mt5 --enable-trading
+```
+
+API ที่รองรับรูปแบบ OpenAI-compatible ใช้ HTTPS base URL และตั้ง `NS_AI_API_KEY` บนเครื่อง Bridge ตามบริการนั้น เว็บไม่รับหรือเก็บ API key ของโมเดล เมื่อเลือกผู้ให้บริการบนคลาวด์ ข้อมูลราคา สัญญา ยอดเงิน และสถานะที่เกี่ยวข้องจะถูกส่งไปยังผู้ให้บริการนั้น โดยไม่ส่งเลขล็อกอิน เซิร์ฟเวอร์บัญชี หรือ token ของ gateway
+
+ในแท็บซื้อขาย กด **AI / MCP** เพื่อตรวจการตั้งค่า ใส่โจทย์แล้วกด Analyze AI จะอ่าน quote, สเปกสัญญา, แท่งล่าสุดไม่เกิน 120 แท่ง และสถานะของสินทรัพย์ในบัญชีที่เลือก ตอบเป็นข้อเสนอหรือไม่เทรด ถ้าต้องการใช้ข้อเสนอให้กด Review draft แล้วตรวจและยืนยันด้วยตนเอง **AI ไม่ส่งคำสั่งอัตโนมัติ**
+
+MCP ใช้ได้กับ AI client ที่รองรับ โดยเพิ่ม `get_trading_state` เพื่ออ่านบัญชีและสถานะจริง และ `suggest_trade` เพื่อขอข้อเสนอจากโมเดลที่ตั้งไว้ เครื่องมือ MCP ไม่มีคำสั่งเปิด/ปิด/แก้ไขออเดอร์จริง
 
 ## 4. เชื่อม MCP ให้ AI อ่านราคา
 
@@ -93,6 +128,8 @@ py bridge.py --mode mt5 --port 8788
 2. ปรับ `mcp-config.example.json` ให้เป็น path ของ Python และ `mcp_server.py` บนเครื่องจริง
 3. ตั้ง `NS_BRIDGE_URL` และ token ให้เหมือน gateway ห้าม commit token ที่ใช้งานจริง
 4. เพิ่ม server ใน MCP client แล้วเชื่อมต่อ มีเครื่องมือ:
+   - `get_trading_state`: ข้อมูลบัญชี สถานะเปิด และสิทธิ์ซื้อขายของ Terminal
+   - `suggest_trade`: ข้อเสนอจาก AI ที่ตั้งไว้ตาม symbol/TF/โจทย์ ไม่ส่งคำสั่ง
    - `get_connection_status`: บริษัทโบรกจริง, MT4/MT5, สถานะ terminal และข้อมูลบัญชี (ID/server/currency/balance/equity)
    - `list_symbols`: ชื่อ symbol จริงรวม suffix เช่น `.pro`, `.cash`, tick size และสกุลเงินกำไร
    - `get_quote`: Bid/Ask และเวลา tick UTC milliseconds ต้องตรวจความสด
@@ -102,7 +139,7 @@ py bridge.py --mode mt5 --port 8788
 
 ### MCP ผ่าน HTTP / VPS
 
-`bridge.py` เปิด MCP แบบ Streamable HTTP ที่ `http://127.0.0.1:8787/mcp` ด้วย JSON responses (ไม่มี SSE stream และไม่มี session ฝั่งเซิร์ฟเวอร์) ใช้เครื่องมืออ่านข้อมูลสี่รายการเดียวกัน รับ `Authorization: Bearer <bridge token>` ทุกคำขอ และตรวจ Host/Origin ตาม allowlist ตั้งค่า client ตาม `mcp-http.example.json` โดยปรับรูปแบบให้ตรงกับ client นั้น
+`bridge.py` เปิด MCP แบบ Streamable HTTP ที่ `http://127.0.0.1:8787/mcp` ด้วย JSON responses (ไม่มี SSE stream และไม่มี session ฝั่งเซิร์ฟเวอร์) ใช้เครื่องมือหกรายการเดียวกันที่ไม่ส่งคำสั่งซื้อขาย รับ `Authorization: Bearer <bridge token>` ทุกคำขอ และตรวจ Host/Origin ตาม allowlist ตั้งค่า client ตาม `mcp-http.example.json` โดยปรับรูปแบบให้ตรงกับ client นั้น
 
 ใช้ได้กับ MCP client ที่รองรับ HTTP + custom Bearer header เมื่อเปิดผ่าน reverse proxy HTTPS จะใช้ `https://your-bridge.example/mcp` จากเครื่องอื่นได้ แต่ต้องทำ HTTPS / การเข้าถึง VPS ของคุณให้เรียบร้อยก่อน ตัวเชื่อมไม่ได้เปิด tunnel หรือเผยแพร่พอร์ตจากคอมให้อัตโนมัติ
 
@@ -110,7 +147,7 @@ py bridge.py --mode mt5 --port 8788
 
 ## ขอบเขตข้อมูล
 
-- อ่านข้อมูลบัญชี ยอดเงิน ราคา และแท่งเทียน ไม่มีส่งออเดอร์ ถอนเงิน หรือแก้ไขบัญชี
+- ค่าเริ่มต้นอ่านข้อมูล ส่วนคำสั่งซื้อขาย Market/SLTP/Close เปิดเฉพาะเมื่อผู้ใช้ตั้งสิทธิ์และใช้ Trade token แยก ไม่มีฟังก์ชันถอนเงิน
 - เว็บ polling ประมาณ 2 วินาที จึงไม่ใช่ tick-by-tick streaming หรือระบบความถี่สูง
 - ป้าย BROKER · LIVE แสดงเมื่อได้รับ quote ที่มีอายุไม่เกิน 30 วินาที พร้อมแท่งที่ถูกต้องเท่านั้น ไม่มี tick ใหม่จะแสดง STALE / WAIT และไม่เติมข้อมูลสุ่ม
 - รายการ symbol และชื่อ suffix มาจาก terminal จริง ไม่เดาว่า US30/USTEC หรือ GOLD ใช้ชื่อเหมือนกันทุกโบรก สิทธิ์และสินทรัพย์ขึ้นกับบัญชี/ภูมิภาค
@@ -128,4 +165,7 @@ py bridge.py --mode mt5 --port 8788
 - Futures / CFD contract modes: https://www.mql5.com/en/docs/constants/environment_state/marketinfoconstants
 - MQL4 WebRequest: https://docs.mql4.com/common/webrequest
 - TradingView data FAQ: https://www.tradingview.com/widget-docs/faq/data/
+- LM Studio OpenAI-compatible: https://lmstudio.ai/docs/developer/openai-compat
+- MT5 order_send: https://www.mql5.com/en/docs/python_metatrader5/mt5ordersend_py
+- MT4 OrderSend: https://docs.mql4.com/trading/ordersend
 - MCP transport: https://modelcontextprotocol.io/specification/2025-11-25/basic/transports

@@ -34,10 +34,10 @@ export class BrokerMarketProvider{
   let data;try{data=await response.json();}catch{throw new Error('Bridge returned an invalid response');}
   if(!response.ok)throw new Error(data.error||'Broker bridge HTTP '+response.status);return data;
  }
- async connect({url,token,expectedAccount}){
-  this.disconnect();const endpoint=bridgeURL(url),credential=String(token).trim();if(credential.length<32||!/^[!-~]+$/.test(credential))throw new Error('Bridge token must contain at least 32 printable ASCII characters');this.url=endpoint;this.token=credential;
+ async connect({url,token,tradeToken='',expectedAccount}){
+  this.disconnect();const endpoint=bridgeURL(url),credential=String(token).trim();if(credential.length<32||!/^[!-~]+$/.test(credential))throw new Error('Bridge token must contain at least 32 printable ASCII characters');this.url=endpoint;this.token=credential;this.tradeToken=String(tradeToken).trim();if(this.tradeToken&&(this.tradeToken.length<32||!/^[!-~]+$/.test(this.tradeToken))){this.disconnect();throw new Error('Trade token must contain at least 32 printable ASCII characters');}
   const generation=this.generation;
-  try{const status=await this.request('/v1/status');if(generation!==this.generation)throw new Error('Connection cancelled');if(status.protocol!==BRIDGE_PROTOCOL||status.readOnly!==true)throw new Error('This endpoint is not an NS read-only market bridge');if(!status.connected)throw new Error(status.error||'Terminal is not connected. Log in to MT4 / MT5 first');if(expectedAccount&&this.connectionKey(status)!==expectedAccount)throw new Error('The terminal account has changed. Add it as a new account');this.connection=status;this.accountIdentity=this.connectionKey(status);await this.listSymbols();if(!this.catalog.length)throw new Error('No broker symbols are available. Open Market Watch / check the terminal');return status;}catch(error){if(generation===this.generation)this.disconnect();throw error;}
+  try{const status=await this.request('/v1/status');if(generation!==this.generation)throw new Error('Connection cancelled');if(status.protocol!==BRIDGE_PROTOCOL||typeof status.readOnly!=='boolean'||status.readOnly===false&&status.trading?.supported!==true)throw new Error('This endpoint is not a supported NS broker bridge');if(!status.connected)throw new Error(status.error||'Terminal is not connected. Log in to MT4 / MT5 first');if(expectedAccount&&this.connectionKey(status)!==expectedAccount)throw new Error('The terminal account has changed. Add it as a new account');this.connection=status;this.accountIdentity=this.connectionKey(status);await this.listSymbols();if(!this.catalog.length)throw new Error('No broker symbols are available. Open Market Watch / check the terminal');return status;}catch(error){if(generation===this.generation)this.disconnect();throw error;}
  }
  connectionKey(status){return status?.account?.id&&status?.account?.server?String(status.account.server)+'|'+String(status.account.id):null;}
  async listSymbols(){
@@ -67,6 +67,6 @@ export class BrokerMarketProvider{
   this.report(symbol,tf,{type:'connecting',error:null});poll();return session.stop;
  }
  stop(symbol,tf){const key=this.key(symbol,tf);for(const session of [...this.sessions])if(session.key===key)session.stop();}
- disconnect(){this.generation++;for(const session of [...this.sessions])session.stop();this.statuses.clear();this.connection=null;this.accountIdentity=null;this.catalog=[];this.token='';this.url='';}
+ disconnect(){this.generation++;for(const session of [...this.sessions])session.stop();this.statuses.clear();this.connection=null;this.accountIdentity=null;this.catalog=[];this.token='';this.tradeToken='';this.url='';}
  destroy(){this.disconnect();}
 }

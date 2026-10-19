@@ -13,7 +13,7 @@ export function styleTerminalWorkspace(workspace,mode){
  for(const cell of workspace.cells())styleTerminalChart(cell.chart,mode);
 }
 export function setupMarketTabs({doc=document}={}){
- const buttons=[...doc.querySelectorAll('[data-market-tab]')],names=['watchlist','paper','risk'];
+ const buttons=[...doc.querySelectorAll('[data-market-tab]')],names=buttons.map(button=>button.dataset.marketTab);
  function select(name){if(!names.includes(name))return;doc.getElementById('market-panel').dataset.section=name;
   for(const button of buttons){const active=button.dataset.marketTab===name;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;doc.getElementById(button.getAttribute('aria-controls')).hidden=!active;}
  }
